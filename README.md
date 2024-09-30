@@ -1,1 +1,4 @@
-# tcss343-part-1
+# TCSS 343 Course Project: Part 1
+by Christian Bonnalie, Abraham Engebretson, Ethan Somdahl
+
+University of Washington Tacoma - Autumn 2024
