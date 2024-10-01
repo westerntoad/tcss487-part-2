@@ -75,7 +75,7 @@ public class SHA3SHAKE {
      * @param out hash value buffer (if null, this method allocates it with the required size)
      * @return the out buffer containing the desired hash value.
      */
-    public static byte[] SHA3(int suffix, byte[] X, byte[] out) { return new byte[0]; }
+    public static byte[] SHA3(int suffix, byte[] X, byte[] out) { return new byte[suffix / 8]; }
 
     /**
      * Compute the streamlined SHAKE-<128,256> on input X with output bit length L.
