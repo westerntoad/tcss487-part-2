@@ -34,6 +34,7 @@ public class TestResult {
         if (this.passed()) {
             return "Test " + this.name() + " passed.";
         }
+
         StringBuilder sb = new StringBuilder();
 
         sb.append("Test ");
@@ -44,7 +45,6 @@ public class TestResult {
         sb.append('\n');
         sb.append("actual    ");
         sb.append(HEXF.formatHex(this.result));
-        sb.append('\n');
         sb.append('\n');
 
         return sb.toString();

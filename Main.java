@@ -1,4 +1,5 @@
 import java.util.*;
+import java.io.*;
 
 public class Main {
     
@@ -15,21 +16,58 @@ public class Main {
         String name = "SHA3-256 0x00";
         byte[] message = { 0x00 };
         byte[] result = SHA3SHAKE.SHA3(256, message, null);
-        byte[] expected = HexFormat.of().parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+        byte[] expected = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
         return new TestResult(name, result, expected);
     }
 
+    private static List<TestResult> testFromFileSHA3(File file) {
+        List<TestResult> results = new ArrayList<TestResult>();
+
+        try {
+            Scanner scanner = new Scanner(file);
+            String line = scanner.nextLine();
+
+            while (line.length() > 0 && line.charAt(0) != '[') {
+                line = scanner.nextLine();
+            }
+            line = scanner.nextLine();
+
+            int suffix = Integer.valueOf(line.substring(5, 8));
+
+            scanner.nextLine();
+
+            // loop
+            while (scanner.hasNextLine()) {
+                int messageLength = Integer.valueOf(scanner.nextLine().substring(6));
+                byte[] message = HEXF.parseHex(scanner.nextLine().substring(6));
+                byte[] result = SHA3SHAKE.SHA3(suffix, message, null);
+                byte[] expected = HEXF.parseHex(scanner.nextLine().substring(5));
+                String name = "SHA3-" + suffix + " L=" + messageLength;
+                results.add(new TestResult(name, result, expected));
+
+                scanner.nextLine();
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("Could not find file to test.");
+            e.printStackTrace();
+        }
+
+        return results;
+    }
+
     private static void runAllTests() {
-        // TODO dynamic testing based off input in ./tests/*
         int numPassed = 0;
         int totalTests = 0;
-        
-        totalTests++;
-        TestResult test1 = exampleTest();
-        if ( test1.passed() ) {
-            numPassed++;
+
+        File file = new File("tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp");
+        for (TestResult result : testFromFileSHA3(file)) {
+            if ( result.passed() ) { numPassed++; }
+
+            totalTests++;
+            System.out.println(result.toString());
         }
-        System.out.println(test1.toString());
+
+        // TODO more test files and suffixes
 
         if ( numPassed == totalTests ) {
             System.out.println("Passed all tests.");
