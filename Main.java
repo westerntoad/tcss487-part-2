@@ -4,21 +4,17 @@ import java.io.*;
 public class Main {
     
     private static final HexFormat HEXF = HexFormat.of();
-
-    /*private static byte[] readBytes(String path) throws IOException {
-        // inspiration for this method was taken from this StackOverflow answer:
-        // https://stackoverflow.com/a/326440
-        
-        return Files.readAllBytes(Paths.get(path));
-    }*/
-
-    private static TestResult exampleTest() {
-        String name = "SHA3-256 0x00";
-        byte[] message = { 0x00 };
-        byte[] result = SHA3SHAKE.SHA3(256, message, null);
-        byte[] expected = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
-        return new TestResult(name, result, expected);
-    }
+    
+    private static final String[] SHA3_TEST_PATHS = {
+        "tests/sha-3bytetestvectors/SHA3_224ShortMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_224LongMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_256LongMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_384ShortMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_384LongMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp",
+        "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp"
+    };
 
     private static List<TestResult> testFromFileSHA3(File file) {
         List<TestResult> results = new ArrayList<TestResult>();
@@ -55,16 +51,18 @@ public class Main {
         return results;
     }
 
-    private static void runAllTests() {
+    private static void runAllTests(boolean additionalInfo) {
         int numPassed = 0;
         int totalTests = 0;
 
-        File file = new File("tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp");
-        for (TestResult result : testFromFileSHA3(file)) {
-            if ( result.passed() ) { numPassed++; }
+        for (String path : SHA3_TEST_PATHS) {
+            File file = new File(path);
+            for (TestResult result : testFromFileSHA3(file)) {
+                if ( result.passed() ) { numPassed++; }
 
-            totalTests++;
-            System.out.println(result.toString());
+                totalTests++;
+                if (additionalInfo) { System.out.println(result.toString()); }
+            }
         }
 
         // TODO more test files and suffixes
@@ -81,7 +79,7 @@ public class Main {
             switch (args[i]) {
                 case "-t":
                 case "--test":
-                    runAllTests();
+                    runAllTests(false);
                     break;
                 default: continue;
             }
