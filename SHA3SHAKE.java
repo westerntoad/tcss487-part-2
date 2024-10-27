@@ -1,13 +1,51 @@
 public class SHA3SHAKE {
 
-    public SHA3SHAKE() {}
+    /** Round constants used by iota */
+    private static final long[] ROUND_CONSTANTS = {
+        // constants copied directly copied from mjosaarinen/tiny_sha3 .
+        // can be computed ourselves using the NIST specification if needed.
+        0x0000000000000001l, 0x0000000000008082l, 0x800000000000808al,
+        0x8000000080008000l, 0x000000000000808bl, 0x0000000080000001l,
+        0x8000000080008081l, 0x8000000000008009l, 0x000000000000008al,
+        0x0000000000000088l, 0x0000000080008009l, 0x000000008000000al,
+        0x000000008000808bl, 0x800000000000008bl, 0x8000000000008089l,
+        0x8000000000008003l, 0x8000000000008002l, 0x8000000000000080l,
+        0x000000000000800al, 0x800000008000000al, 0x8000000080008081l,
+        0x8000000000008080l, 0x0000000080000001l, 0x8000000080008008l
+    };
+
+    /** Number of rounds to run Keccak-f for each permutation */
+    private static final int KECCAK_ROUNDS = 24;
+
+    /** Total size, in bits, of the internal state used by Keccak-f */
+    private static final int STATE_SIZE = 1600;
+
+
+    /** Capacity, or c, of the sponge construction. Dependent on the suffix. */
+    private int capacity;
+
+    /** Rate, or r, of the sponge construction. Dependent on the suffix. */
+    private int rate;
+
+    /** Internal state used by Keccak-f. Not dependent on the suffix. */
+    private long[][] state;
+
+    /** Unused default constructor used by the class. */
+    public SHA3SHAKE() {
+        // Not sure why this is needed?
+        // Seems like init is doing the job of the constructor.
+    }
 
     /**
      * Initialize the SHA-3/SHAKE sponge.
      * The suffix must be one of 224, 256, 384, or 512 for SHA-3, or one of 128 or 256 for SHAKE.
      * @param suffix SHA-3/SHAKE suffix (SHA-3 digest bit length = suffix, SHAKE sec level = suffix)
      */
-    public void init(int suffix) { /* … */ }
+    public void init(int suffix) {
+        capacity = 2 * suffix;
+        rate = STATE_SIZE - capacity;
+        state = new long[5][5];
+    }
 
     /**
      * Update the SHAKE sponge with a byte-oriented data chunk.
@@ -75,7 +113,11 @@ public class SHA3SHAKE {
      * @param out hash value buffer (if null, this method allocates it with the required size)
      * @return the out buffer containing the desired hash value.
      */
-    public static byte[] SHA3(int suffix, byte[] X, byte[] out) { return new byte[suffix / 8]; }
+    public static byte[] SHA3(int suffix, byte[] X, byte[] out) {
+        SHA3SHAKE sponge = new SHA3SHAKE();
+        sponge.init(suffix);
+        return new byte[suffix / 8];
+    }
 
     /**
      * Compute the streamlined SHAKE-<128,256> on input X with output bit length L.
@@ -87,5 +129,12 @@ public class SHA3SHAKE {
      * @return the out buffer containing the desired hash value.
      */
     public static byte[] SHAKE(int suffix, byte[] X, int L, byte[] out) { return new byte[0]; }
-
+    
+    private void keccakf() {
+        for (int r = 0; r < KECCAK_ROUNDS; r++) {
+            
+            // iota
+            state[0][0] ^= ROUND_CONSTANTS[r];
+        }
+    }
 }
