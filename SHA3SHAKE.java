@@ -1,6 +1,13 @@
 public class SHA3SHAKE {
 
-    /** Round constants used by iota */
+    /** Number of left-rotations used by the Rho step. */
+    private static final int[] RHO_TATIONS = {
+        // constants copied directly copied from mjosaarinen/tiny_sha3 .
+        1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
+        27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
+    };
+
+    /** Round constants used by the Iota */
     private static final long[] ROUND_CONSTANTS = {
         // constants copied directly copied from mjosaarinen/tiny_sha3 .
         // can be computed ourselves using the NIST specification if needed.
@@ -27,7 +34,15 @@ public class SHA3SHAKE {
     /** Rate, or r, of the sponge construction. Dependent on the suffix. */
     private int rate;
 
-    /** Internal state used by Keccak-f. Not dependent on the suffix. */
+    /**
+     * Internal state used by Keccak-f. Not dependent on the suffix.
+     * Note that the state is indexed to a specific bit like so (using variables as
+     * defined by the NIST specs):
+     *
+     * <pre> {@code
+     * bit(x, y, z) = state[x][y] & (1 <<< z)
+     * } </pre>
+     */
     private long[][] state;
 
     /** Unused default constructor used by the class. */
@@ -133,8 +148,48 @@ public class SHA3SHAKE {
     private void keccakf() {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
             
-            // iota
+            // -- THETA --
+            // hold the xor of all pillars in a buffer
+            // conceptually, pillarXors is a buffer of sheets
+            long[] pillarXors = new long[5];
+            for (int i = 0; i < 5; i++) {
+                for (int j = 0; j < 5; j++) {
+                    pillarXors[i] ^= state[i][j];
+                }
+            }
+
+            // xor relevant sheets with internal state
+            for (int i = 0; i < 5; i++) {
+                long sheetIdx = pillarXors[(i - 1) % 5] ^ rotL(pillarXors[(i + 1) % 5], 1);
+                for (int j = 0; j < 5; j++) {
+                    state[i][j] ^= sheetIdx;
+                }
+            }
+
+            // -- RHO --
+            // TODO
+
+            // -- PI --
+            // TODO
+
+            // -- CHI --
+            // TODO
+
+            // -- IOTA --
             state[0][0] ^= ROUND_CONSTANTS[r];
         }
+    }
+
+    /**
+     * Takes a value and returns it shifted left by a number of bits, with fallen
+     * bits wrapped to the front.
+     *
+     * @param value the value to be rotated.
+     * @param shift the number of bits to shift left.
+     * @return the value shifted left a number of bits.
+     */
+    private static long rotL(long value, int shift) {
+        shift %= 64; // Ensure shift is within 64-bit range
+        return (value << shift) | (value >>> (64 - shift));
     }
 }
