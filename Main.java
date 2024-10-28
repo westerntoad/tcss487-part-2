@@ -3,7 +3,7 @@ import java.io.*;
 
 public class Main {
     
-    private static final HexFormat HEXF = HexFormat.of();
+    public static final HexFormat HEXF = HexFormat.of();
     
     private static final String[] SHA3_TEST_PATHS = {
         "tests/sha-3bytetestvectors/SHA3_224ShortMsg.rsp",
@@ -15,6 +15,14 @@ public class Main {
         "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp",
         "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp"
     };
+
+    private static void sampleTest() {
+        byte[] message = HEXF.parseHex("06");
+        //byte[] message = HEXF.parseHex("01997b5853");
+        //byte[] message = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434aa7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+        byte[] result = SHA3SHAKE.SHA3(256, message, null);
+        byte[] expected = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+    }
 
     private static List<TestResult> testFromFileSHA3(File file) {
         List<TestResult> results = new ArrayList<TestResult>();
@@ -78,7 +86,8 @@ public class Main {
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "test":
-                    runAllTests(false);
+                    //runAllTests(false);
+                    sampleTest();
                     break;
                 default: continue;
             }

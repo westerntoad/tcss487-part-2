@@ -1,8 +1,6 @@
 import java.util.*;
 
 public class TestResult {
-    private static final HexFormat HEXF = HexFormat.of();
-
     private final String name;
     private final byte[] result;
     private final byte[] expected;
@@ -41,10 +39,10 @@ public class TestResult {
         sb.append(this.name());
         sb.append(" failed.\n");
         sb.append("expected  ");
-        sb.append(HEXF.formatHex(this.expected));
+        sb.append(Main.HEXF.formatHex(this.expected));
         sb.append('\n');
         sb.append("actual    ");
-        sb.append(HEXF.formatHex(this.result));
+        sb.append(Main.HEXF.formatHex(this.result));
         sb.append('\n');
 
         return sb.toString();

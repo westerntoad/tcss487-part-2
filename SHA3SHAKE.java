@@ -1,3 +1,5 @@
+import java.nio.ByteBuffer;
+
 public class SHA3SHAKE {
 
     /** Number of left-rotations used by the Rho step. */
@@ -40,7 +42,7 @@ public class SHA3SHAKE {
      * defined by the NIST specs):
      *
      * <pre> {@code
-     * bit(x, y, z) = state[x][y] & (1 <<< z)
+     * bit(x, y, z) = state[y][x] & (1 <<< z)
      * } </pre>
      */
     private long[][] state;
@@ -94,7 +96,7 @@ public class SHA3SHAKE {
      * @param len desired number of squeezed bytes
      * @return the val buffer containing the desired hash value
      */
-    public byte[] squeeze(byte[] out, int len) { return new byte[0]; }
+    public byte[] squeeze(byte[] out, int len) { return new byte[len]; }
 
     /**
      * Squeeze a chunk of hashed bytes from the sponge.
@@ -103,7 +105,9 @@ public class SHA3SHAKE {
      * @param len desired number of squeezed bytes
      * @return newly allocated buffer containing the desired hash value
      */
-    public byte[] squeeze(int len) { return new byte[0]; }
+    public byte[] squeeze(int len) {
+        return squeeze(new byte[len], len);
+    }
 
     /**
      * Squeeze a whole SHA-3 digest of hashed bytes from the sponge.
@@ -111,14 +115,18 @@ public class SHA3SHAKE {
      * @param out hash value buffer
      * @return the val buffer containing the desired hash value
      */
-    public byte[] digest(byte[] out) { return new byte[0]; }
+    public byte[] digest(byte[] out) {
+        return squeeze(out, capacity / 16);
+    }
 
     /**
      * Squeeze a whole SHA-3 digest of hashed bytes from the sponge.
      *
      * @return the desired hash value on a newly allocated byte array
      */
-    public byte[] digest() { return new byte[0]; }
+    public byte[] digest() {
+        return squeeze(capacity / 16);
+    }
 
     /**
      * Compute the streamlined SHA-3-<224,256,384,512> on input X.
@@ -131,7 +139,27 @@ public class SHA3SHAKE {
     public static byte[] SHA3(int suffix, byte[] X, byte[] out) {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
-        return new byte[suffix / 8];
+
+        // NOTE: THIS IS PLACEHOLDER CODE. PLEASE REPLACE WITH SOMETHING THAT
+        //       ACTUALLY WORKS.
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                // this has a lot of problems...
+                // it currently only works for one lane.
+                byte[] lane = new byte[8];
+                int k = 0;
+                while ( (i + 1) * (j + 1) * 8 + k - 8 < X.length && k < 8) {
+                    lane[k + 8 - (X.length % 8)] = X[(i + 1) * (j + 1) * 8 + k - 8];
+                    k++;
+                }
+                sponge.state[j][i] = bytesToLong(lane);
+            }
+        }
+        sponge.printState();
+        sponge.printLanes();
+
+        sponge.keccakf();
+        return sponge.digest();
     }
 
     /**
@@ -147,6 +175,8 @@ public class SHA3SHAKE {
     
     private void keccakf() {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
+            /* debug */ System.out.printf("\nRound #%d\n", r);
+            /* debug */ printState();
             
             // -- THETA --
             // hold the xor of all pillars in a buffer
@@ -154,17 +184,19 @@ public class SHA3SHAKE {
             long[] pillarXors = new long[5];
             for (int i = 0; i < 5; i++) {
                 for (int j = 0; j < 5; j++) {
-                    pillarXors[i] ^= state[i][j];
+                    pillarXors[i] ^= state[j][i];
                 }
             }
 
             // xor relevant sheets with internal state
             for (int i = 0; i < 5; i++) {
-                long sheetIdx = pillarXors[(i - 1) % 5] ^ rotL(pillarXors[(i + 1) % 5], 1);
+                long sheetIdx = pillarXors[(i + 4) % 5] ^ rotL(pillarXors[(i + 1) % 5], 1);
                 for (int j = 0; j < 5; j++) {
-                    state[i][j] ^= sheetIdx;
+                    state[j][i] ^= sheetIdx;
                 }
             }
+            /* debug */ System.out.println("\nAfter Theta");
+            /* debug */ printState();
 
             // -- RHO --
             // TODO
@@ -180,6 +212,38 @@ public class SHA3SHAKE {
         }
     }
 
+    /** Prints internal state for debugging purposes. */
+    private void printState() {
+        //byte[][][] bytes = new byte[5][5][8];
+        //ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                //buffer.putLong(state[i][j]);
+                //bytes[i][j] = buffer.array();
+                byte[] bytes = longToBytes(state[i][j]);
+                for (int k = 0; k < 8; k++) {
+                    System.out.print(String.format("%02X ", bytes[7 - k]));
+                }
+                if ( (i + j) % 2 == 1 )
+                    System.out.println();
+            }
+        }
+        System.out.println();
+    }
+
+    /** Prints internal state in the form of lanes for debugging purposes. */
+    private void printLanes() {
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 5; j++) {
+                System.out.println(String.format("[%d, %d] = %016x", j, i, state[j][i]));
+            }
+        }
+    }
+
+
+    /* ~~~ HELPER BITWISE METHODS ~~~ */
+
     /**
      * Takes a value and returns it shifted left by a number of bits, with fallen
      * bits wrapped to the front.
@@ -191,5 +255,27 @@ public class SHA3SHAKE {
     private static long rotL(long value, int shift) {
         shift %= 64; // Ensure shift is within 64-bit range
         return (value << shift) | (value >>> (64 - shift));
+    }
+
+    // taken from:
+    // https://stackoverflow.com/a/29132118
+    public static byte[] longToBytes(long l) {
+        byte[] result = new byte[Long.BYTES];
+        for (int i = Long.BYTES - 1; i >= 0; i--) {
+            result[i] = (byte)(l & 0xFF);
+            l >>= Byte.SIZE;
+        }
+        return result;
+    }
+
+    // taken from:
+    // https://stackoverflow.com/a/29132118
+    public static long bytesToLong(final byte[] b) {
+        long result = 0;
+        for (int i = 0; i < Long.BYTES; i++) {
+            result <<= Byte.SIZE;
+            result |= (b[i] & 0xFF);
+        }
+        return result;
     }
 }
