@@ -142,17 +142,23 @@ public class SHA3SHAKE {
 
         // NOTE: THIS IS PLACEHOLDER CODE. PLEASE REPLACE WITH SOMETHING THAT
         //       ACTUALLY WORKS.
+        int blockedData = (X.length / 8) * 8;
         for (int i = 0; i < 5; i++) {
             for (int j = 0; j < 5; j++) {
-                // this has a lot of problems...
-                // it currently only works for one lane.
                 byte[] lane = new byte[8];
                 int k = 0;
-                while ( (i + 1) * (j + 1) * 8 + k - 8 < X.length && k < 8) {
-                    lane[k + 8 - (X.length % 8)] = X[(i + 1) * (j + 1) * 8 + k - 8];
+                int idx = (i * 40) + (j * 8) + k;
+                while ( idx < X.length && k < 8) {
+                    if (idx >= blockedData) {
+                        lane[k + (8 - (X.length % 8))] = X[idx];
+                    } else {
+                        lane[k] = X[idx];
+                    }
+                    // lane[k + Math.max(0, (8 - (X.length % 8)) - blockedData)] = X[idx];
                     k++;
+                    idx = (i * 40) + (j * 8) + k; 
                 }
-                sponge.state[j][i] = bytesToLong(lane);
+                sponge.state[i][j] = bytesToLong(lane);
             }
         }
         sponge.printState();
@@ -183,9 +189,10 @@ public class SHA3SHAKE {
             // conceptually, pillarXors is a buffer of sheets
             long[] pillarXors = new long[5];
             for (int i = 0; i < 5; i++) {
-                for (int j = 0; j < 5; j++) {
-                    pillarXors[i] ^= state[j][i];
-                }
+                pillarXors[i] = state[0][i] ^ state[1][i] ^ state[2][i] ^ state[3][i] ^ state[4][i];
+                // for (int j = 0; j < 5; j++) {
+                //     pillarXors[i] ^= state[j][i];
+                // }
             }
 
             // xor relevant sheets with internal state
@@ -236,7 +243,7 @@ public class SHA3SHAKE {
     private void printLanes() {
         for (int i = 0; i < 5; i++) {
             for (int j = 0; j < 5; j++) {
-                System.out.println(String.format("[%d, %d] = %016x", j, i, state[j][i]));
+                System.out.println(String.format("[%d, %d] = %016x", j, i, state[i][j]));
             }
         }
     }
