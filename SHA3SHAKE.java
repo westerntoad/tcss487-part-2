@@ -16,6 +16,8 @@ public class SHA3SHAKE {
         18, 2,  61, 56, 14
     };
 
+    private static final int[] PI_OFFSET = initPiOffset();
+
     /** Round constants used by the Iota */
     private static final long[] ROUND_CONSTANTS = {
         // constants copied directly copied from mjosaarinen/tiny_sha3 .
@@ -189,6 +191,7 @@ public class SHA3SHAKE {
     
     private void keccakf() {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
+        //for (int r = 0; r < 1; r++) {
             /* debug */ System.out.printf("\nRound #%d", r);
             
             // -- THETA --
@@ -222,16 +225,38 @@ public class SHA3SHAKE {
             /* debug */ printState();
 
             // -- PI --
+            // REALLY GROSS. TODO: FIX.
+            long[][] old = new long[5][];
             for (int i = 0; i < 5; i++) {
-                for (int j = 0; j < 5; j++) {
-                    
-                }
+                old[i] = state[i].clone();
             }
+            for (int i = 0; i < 25; i++) {
+                int offsetX = PI_OFFSET[i] % 5;
+                int offsetY = PI_OFFSET[i] / 5;
+                state[offsetY][offsetX] = old[i / 5][i % 5];
+            }
+
+            //long prev = state[0][0];
+            //for (int i = 0; i < 25; i++) {
+            //    int offsetX = PI_OFFSET[i] % 5;
+            //    int offsetY = PI_OFFSET[i] / 5;
+            //    long curr = state[offsetY][offsetX];
+            //    state[offsetX][offsetY] = prev;
+            //    prev = curr;
+            //}
             /* debug */ System.out.println("\nAfter Pi");
             /* debug */ printState();
 
             // -- CHI --
-            // TODO
+            long[] buffer = new long[5];
+            for (int i = 0; i < 5; i++) {
+                for (int j = 0; j < 5; j++) {
+                    buffer[j] = state[i][j];
+                }
+                for (int j = 0; j < 5; j++) {
+                    state[i][j] ^= (~buffer[(j + 1) % 5]) & buffer[(j + 2) % 5];
+                }
+            }
             /* debug */ System.out.println("\nAfter Chi");
             /* debug */ printState();
 
@@ -307,5 +332,18 @@ public class SHA3SHAKE {
             result |= (b[i] & 0xFF);
         }
         return result;
+    }
+
+    private static int[] initPiOffset() {
+        int[] offsets = new int[25];
+        for (int i = 0; i < 25; i++) {
+            int x = i % 5;
+            int y = i / 5;
+            
+            // /* debug */ System.out.printf("(x=%d, y=%d) => (x=%d, y=%d)\n", x, y, (x + 3 * y) % 5, x);
+            offsets[((x + 3 * y) % 5) + 5 * x] = i;
+        }
+
+        return offsets;
     }
 }
