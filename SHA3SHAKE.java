@@ -5,8 +5,15 @@ public class SHA3SHAKE {
     /** Number of left-rotations used by the Rho step. */
     private static final int[] RHO_TATIONS = {
         // constants copied directly copied from mjosaarinen/tiny_sha3 .
-        1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
-        27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
+        //1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14, 27,
+        //41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44, 0
+
+        // constants manually configured from NIST specs
+        0,  1,  62, 28, 27,
+        36, 44, 6,  55, 20,
+        3,  10, 43, 25, 39,
+        41, 45, 15, 21, 8,
+        18, 2,  61, 56, 14
     };
 
     /** Round constants used by the Iota */
@@ -161,6 +168,7 @@ public class SHA3SHAKE {
                 sponge.state[i][j] = bytesToLong(lane);
             }
         }
+        sponge.state[3][1] |= 0x80_00_00_00_00_00_00_00l;
         sponge.printState();
         sponge.printLanes();
 
@@ -181,18 +189,17 @@ public class SHA3SHAKE {
     
     private void keccakf() {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
-            /* debug */ System.out.printf("\nRound #%d\n", r);
-            /* debug */ printState();
+            /* debug */ System.out.printf("\nRound #%d", r);
             
             // -- THETA --
             // hold the xor of all pillars in a buffer
             // conceptually, pillarXors is a buffer of sheets
             long[] pillarXors = new long[5];
             for (int i = 0; i < 5; i++) {
-                pillarXors[i] = state[0][i] ^ state[1][i] ^ state[2][i] ^ state[3][i] ^ state[4][i];
-                // for (int j = 0; j < 5; j++) {
-                //     pillarXors[i] ^= state[j][i];
-                // }
+                //pillarXors[i] = state[0][i] ^ state[1][i] ^ state[2][i] ^ state[3][i] ^ state[4][i];
+                for (int j = 0; j < 5; j++) {
+                    pillarXors[i] ^= state[j][i];
+                }
             }
 
             // xor relevant sheets with internal state
@@ -206,16 +213,32 @@ public class SHA3SHAKE {
             /* debug */ printState();
 
             // -- RHO --
-            // TODO
+            for (int i = 0; i < 5; i++) {
+                for (int j = 0; j < 5; j++) {
+                    state[i][j] = rotL(state[i][j], RHO_TATIONS[i * 5 + j]);
+                }
+            }
+            /* debug */ System.out.println("\nAfter Rho");
+            /* debug */ printState();
 
             // -- PI --
-            // TODO
+            for (int i = 0; i < 5; i++) {
+                for (int j = 0; j < 5; j++) {
+                    
+                }
+            }
+            /* debug */ System.out.println("\nAfter Pi");
+            /* debug */ printState();
 
             // -- CHI --
             // TODO
+            /* debug */ System.out.println("\nAfter Chi");
+            /* debug */ printState();
 
             // -- IOTA --
             state[0][0] ^= ROUND_CONSTANTS[r];
+            /* debug */ System.out.println("\nAfter Iota");
+            /* debug */ printState();
         }
     }
 
