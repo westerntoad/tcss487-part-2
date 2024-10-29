@@ -1,4 +1,5 @@
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class SHA3SHAKE {
 
@@ -42,7 +43,7 @@ public class SHA3SHAKE {
      * defined by the NIST specs):
      *
      * <pre> {@code
-     * bit(x, y, z) = state[y][x] & (1 <<< z)
+     * bit(x, y, z) = state[y][x] & (1 << z)
      * } </pre>
      */
     private long[][] state;
@@ -71,7 +72,21 @@ public class SHA3SHAKE {
      * @param pos initial index to hash from
      * @param len byte count on the buffer
      */
-    public void absorb(byte[] data, int pos, int len) { /* … */ }
+    public void absorb(byte[] data, int pos, int len) {
+
+        for(int i = 0; i < len; i++) {
+            // determine which lane the byte should go into
+            int laneIndex = (pos + i) / 8;
+            // get the x and y position of the byte
+            int y = laneIndex / 5;
+            int x = laneIndex % 5;
+            // determine the byte position
+            int byteIndex = (pos + i) % 8;
+
+            state[y][x] ^= (long) (data[i] & 0xFF) << byteIndex * 8;
+        }
+
+    }
 
     /**
      * Update the SHAKE sponge with a byte-oriented data chunk.
@@ -140,6 +155,25 @@ public class SHA3SHAKE {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
 
+        for (byte b : X) {
+            System.out.println(b);
+        }
+
+        int padBytes = (sponge.rate / 8) - (X.length);
+        int extra = X.length % 8;
+        System.out.println("rate: " + sponge.rate);
+        System.out.println("message length: " + X.length);
+        System.out.println("pad bytes: " + padBytes);
+        System.out.println("extra: " + extra);
+
+        // create new byte array large enough for our rate
+        byte[] paddedMessage = new byte[sponge.rate / 8];
+        // pad the message with two 1's where the message ends
+        paddedMessage[X.length] ^= (byte) (0x06);
+        // end the padding once we've hit our rate
+        paddedMessage[paddedMessage.length - 1] ^= (byte) 0x80;
+
+
         // NOTE: THIS IS PLACEHOLDER CODE. PLEASE REPLACE WITH SOMETHING THAT
         //       ACTUALLY WORKS.
         int blockedData = (X.length / 8) * 8;
@@ -153,14 +187,15 @@ public class SHA3SHAKE {
                         lane[k + (8 - (X.length % 8))] = X[idx];
                     } else {
                         lane[k] = X[idx];
-                    }
+                   }
                     // lane[k + Math.max(0, (8 - (X.length % 8)) - blockedData)] = X[idx];
                     k++;
-                    idx = (i * 40) + (j * 8) + k; 
+                    idx = (i * 40) + (j * 8) + k;
                 }
                 sponge.state[i][j] = bytesToLong(lane);
             }
         }
+        sponge.absorb(paddedMessage, 0, paddedMessage.length);
         sponge.printState();
         sponge.printLanes();
 
@@ -246,6 +281,14 @@ public class SHA3SHAKE {
                 System.out.println(String.format("[%d, %d] = %016x", j, i, state[i][j]));
             }
         }
+    }
+
+    private static void printHex(byte[] data) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : data) {
+            hexString.append(String.format("%02X ", b));
+        }
+        System.out.println(hexString);
     }
 
 

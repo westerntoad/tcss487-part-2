@@ -1,3 +1,5 @@
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.*;
 import java.io.*;
 
@@ -17,8 +19,10 @@ public class Main {
     };
 
     private static void sampleTest() {
-        byte[] message = HEXF.parseHex("06");
-        //byte[] message = HEXF.parseHex("01997b5853");
+        //byte[] message = HEXF.parseHex("3286B7A6");
+        byte[] message = HEXF.parseHex("");
+        System.out.println(Arrays.toString(message));
+        //byte[] message = HEXF.parseHex("197b5853");
         //byte[] message = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434aa7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
         //byte[] message = HEXF.parseHex("A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3");
         byte[] result = SHA3SHAKE.SHA3(256, message, null);
