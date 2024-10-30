@@ -403,6 +403,7 @@ public class SHA3SHAKE {
         int y = (pos / 8) / 5;
         int z = (pos % 8) * 8;
 
+
         if (state[y][x] == 0L) state[y][x] ^= padStart; // empty message edge case
         else state[y][x] ^= padStart << z;
 

@@ -38,13 +38,33 @@ public class Main {
 
     private static void testSHA256() throws FileNotFoundException {
 
-        int testCount = 0;
-        int passedTests = 0;
-
-        String[] paths = {
+        String[] SHA224paths = {
+                "tests/sha-3bytetestvectors/SHA3_224ShortMsg.rsp",
+                "tests/sha-3bytetestvectors/SHA3_224LongMsg.rsp"
+        };
+        String[] SHA256paths = {
                 "tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp",
                 "tests/sha-3bytetestvectors/SHA3_256LongMsg.rsp"
         };
+        String[] SHA384paths = {
+                "tests/sha-3bytetestvectors/SHA3_384ShortMsg.rsp",
+                "tests/sha-3bytetestvectors/SHA3_384LongMsg.rsp"
+        };
+        String[] SHA512paths = {
+                "tests/sha-3bytetestvectors/SHA3_512ShortMsg.rsp",
+                "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp"
+        };
+
+        testHelper(SHA224paths, 224);
+        testHelper(SHA256paths, 256);
+        testHelper(SHA384paths, 384);
+        testHelper(SHA512paths, 512);
+    }
+
+    private static void testHelper(String[] paths, int suffix) throws FileNotFoundException {
+
+        int testCount = 0;
+        int passedTests = 0;
 
         ArrayList<Integer> vectorLengths = new ArrayList<>();
         ArrayList<String> vectorMessages = new ArrayList<>();
@@ -70,33 +90,33 @@ public class Main {
             scanner.close();
         }
 
-        System.out.println(vectorLengths.size() + " tests.");
 
         testCount = vectorLengths.size();
         ArrayList<TestResult> results = new ArrayList<>();
 
+        Long start = System.nanoTime();
         for (int i = 0; i < testCount; i++) {
             byte[] message = HEXF.parseHex(vectorMessages.get(i));
             byte[] expected = HEXF.parseHex(vectorExpected.get(i));
-            byte[] actual = SHA3SHAKE.SHA3(256, message, null);
-            String name = "SHA3-" + 256 + " L=" + vectorLengths.get(i);
+            byte[] actual = SHA3SHAKE.SHA3(suffix, message, null);
+            String name = "SHA3-" + suffix + " L=" + vectorLengths.get(i);
             TestResult tr = new TestResult(name, actual, expected);
             if (tr.passed()) passedTests++;
             else failedTests.add(vectorLengths.get(i));
             results.add(tr);
         }
+        Long end = System.nanoTime();
 
         for (TestResult tr : results) {
-            System.out.println(tr);
+            if (!tr.passed()) System.out.println(tr);
         }
 
-        System.out.println(passedTests + " of " + testCount + " SHA3-256 tests passed.\n");
-        System.out.println("*** TESTS FAILED ***");
-        if (failedTests.isEmpty()) System.out.println("None");
+        double time = (end - start) / 1E6;
+        System.out.println(passedTests + " of " + testCount + " SHA3-" + suffix + " tests passed in " + time + " milliseconds.");
+        if (!failedTests.isEmpty()) System.out.println("**** TESTS FAILED ****");
         for (Integer length : failedTests) {
             System.out.println("L="+length);
         }
-
     }
 
     private static List<TestResult> testFromFileSHA3(File file) {
