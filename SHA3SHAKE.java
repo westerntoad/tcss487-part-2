@@ -1,3 +1,4 @@
+import java.util.Arrays;
 
 public class SHA3SHAKE {
 
@@ -105,13 +106,16 @@ public class SHA3SHAKE {
 
         int j = 0;
         for (int i = 0; i < len; i++) {
-            int y = (i / 8) % 5;
-            int x = (i / 8) / 5;
-            int z = (i % 8) * 8;
-            state[y][x] ^= (long) (data[j] & 0xFF) << z;
+            int x = (j / 8) % 5;
+            int y = (j / 8) / 5;
+            int z = (j % 8) * 8;
+            state[y][x] ^= (long) (data[i] & 0xFF) << z;
             j++;
 
             if (j == rate_bytes) {
+//                System.out.println("Data to be absorbed:");
+//                printState();
+//                printLanes();
                 keccakf();
                 j = 0;
             }
@@ -179,13 +183,24 @@ public class SHA3SHAKE {
      */
     public byte[] digest() {
 
-        if (pos != 0) {
-            pad();
-            keccakf();
+        byte[] out = new byte[capacity / 16];
+
+        pad(true);
+        keccakf();
+
+        int i = 0;
+        for (long[] lane : state) {
+            for (long value : lane) {
+                byte[] temp = longToBytes(value);
+
+                for (int j = temp.length - 1; j >= 0 && i < out.length; j--) {
+                    out[i] = temp[j];
+                    i++;
+                }
+            }
         }
 
-
-        return null;
+        return out;
     }
 
     /**
@@ -220,7 +235,7 @@ public class SHA3SHAKE {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
             //for (int r = 0; r < 1; r++) {
             /* debug */
-            System.out.printf("\nRound #%d", r);
+//            System.out.printf("\nRound #%d", r);
 
             // -- THETA --
             // hold the xor of all pillars in a buffer
@@ -240,10 +255,10 @@ public class SHA3SHAKE {
                     state[j][i] ^= sheetIdx;
                 }
             }
-            /* debug */
-            System.out.println("\nAfter Theta");
-            /* debug */
-            printState();
+//            /* debug */
+//            System.out.println("\nAfter Theta");
+//            /* debug */
+//            printState();
 
             // -- RHO --
             for (int i = 0; i < 5; i++) {
@@ -251,10 +266,10 @@ public class SHA3SHAKE {
                     state[i][j] = rotL(state[i][j], RHO_TATIONS[i * 5 + j]);
                 }
             }
-            /* debug */
-            System.out.println("\nAfter Rho");
-            /* debug */
-            printState();
+//            /* debug */
+//            System.out.println("\nAfter Rho");
+//            /* debug */
+//            printState();
 
             // -- PI --
             int x = 0, y = 1, oldX, oldY;
@@ -270,10 +285,10 @@ public class SHA3SHAKE {
             }
             state[y][x] = temp;
 
-            /* debug */
-            System.out.println("\nAfter Pi");
-            /* debug */
-            printState();
+//            /* debug */
+//            System.out.println("\nAfter Pi");
+//            /* debug */
+//            printState();
 
             // -- CHI --
             long[] buffer = new long[5];
@@ -285,17 +300,17 @@ public class SHA3SHAKE {
                     state[i][j] ^= (~buffer[(j + 1) % 5]) & buffer[(j + 2) % 5];
                 }
             }
-            /* debug */
-            System.out.println("\nAfter Chi");
-            /* debug */
-            printState();
+//            /* debug */
+//            System.out.println("\nAfter Chi");
+//            /* debug */
+//            printState();
 
             // -- IOTA --
             state[0][0] ^= ROUND_CONSTANTS[r];
-            /* debug */
-            System.out.println("\nAfter Iota");
-            /* debug */
-            printState();
+//            /* debug */
+//            System.out.println("\nAfter Iota");
+//            /* debug */
+//            printState();
         }
     }
 
@@ -303,6 +318,7 @@ public class SHA3SHAKE {
      * Prints internal state for debugging purposes.
      */
     private void printState() {
+        //byte[][][] bytes = new byte[5][5][8];
         //byte[][][] bytes = new byte[5][5][8];
         //ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
 
@@ -378,25 +394,27 @@ public class SHA3SHAKE {
         return result;
     }
 
-    private void pad() {
-        // coordinates for 0x06 padding
-        int y = (pos / 8) % 5;
-        int x = (pos / 8) / 5;
+    private void pad(boolean isSHA) {
+
+        long padStart = (isSHA) ? 0x06L : 0x1FL;
+
+        /* coordinates for start of padding */
+        int x = (pos / 8) % 5;
+        int y = (pos / 8) / 5;
         int z = (pos % 8) * 8;
 
-        // if the last byte has a value of zero,
-        // ignore it and put the padding there.
-        if (state[y][x] == 0L) state[y][x] = 0x06L;
-        else state[y][x] = 0x06L << z;
+        if (state[y][x] == 0L) state[y][x] ^= padStart; // empty message edge case
+        else state[y][x] ^= padStart << z;
 
-        // coordinates for 0x80 padding
+        /* coordinates for end of padding */
         int rateY = ((rate_bytes - 1) / 8) / 5;
         int rateX = ((rate_bytes - 1) / 8) % 5;
         int rateZ = ((rate_bytes - 1) % 8) * 8;
 
         state[rateY][rateX] ^= 0x80L << rateZ;
 
-        printState();
-        printLanes();
+//        System.out.println("\nAfter Pad:");
+//        printState();
+//        printLanes();
     }
 }
