@@ -404,7 +404,7 @@ public class SHA3SHAKE {
         int z = (pos % 8) * 8;
 
 
-        if (state[y][x] == 0L) state[y][x] ^= padStart; // empty message edge case
+        if (state[y][x] == 0L && pos == 1) state[y][x] ^= padStart; // empty message edge case
         else state[y][x] ^= padStart << z;
 
         /* coordinates for end of padding */
