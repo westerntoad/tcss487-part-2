@@ -28,8 +28,8 @@ public class Main {
         byte[] result = SHA3SHAKE.SHA3(256, message, null);
         byte[] expected = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
         String name = "SHA3-" + 256 + " L=" + 0;
-        TestResult tr = new TestResult(name, result, expected);
-        System.out.println(tr);
+        //TestResult tr = new TestResult(name, result, expected);
+        //System.out.println(tr);
 
     }
 

@@ -58,6 +58,9 @@ public class SHA3SHAKE {
      * Rate of the sponge construction expressed in bytes.
      */
     private int rate_bytes;
+
+    private int pos;
+
     /**
      * Internal state used by Keccak-f. Not dependent on the suffix.
      * Note that the state is indexed to a specific bit like so (using variables as
@@ -88,6 +91,7 @@ public class SHA3SHAKE {
         rate_bits = STATE_SIZE - capacity;
         rate_bytes = rate_bits / 8;
         state = new long[5][5];
+        pos = 0;
     }
 
     /**
@@ -98,32 +102,22 @@ public class SHA3SHAKE {
      * @param len  byte count on the buffer
      */
     public void absorb(byte[] data, int pos, int len) {
-        int position = pos;
-        int remainingBytes = len;
 
-        while (remainingBytes > 0) {
+        int j = 0;
+        for (int i = 0; i < len; i++) {
+            int y = (i / 8) % 5;
+            int x = (i / 8) / 5;
+            int z = (i % 8) * 8;
+            state[y][x] ^= (long) (data[j] & 0xFF) << z;
+            j++;
 
-            int blockSize = Math.min(remainingBytes, rate_bytes);
-
-            if (blockSize == remainingBytes) {
-                pad(remainingBytes);
-                /* debug */
-                printState();
-                printLanes();
+            if (j == rate_bytes) {
+                keccakf();
+                j = 0;
             }
-
-            for (int i = 0; i < blockSize; i++) {
-                int y = (i / 8) % 5;
-                int x = (i / 8) / 5;
-                int z = (i % 8) * 8;
-                state[y][x] ^= (long) (data[position] & 0xFF) << z;
-                position++;
-            }
-
-            remainingBytes -= blockSize;
-            keccakf();
         }
 
+        this.pos = j;
     }
 
     /**
@@ -184,6 +178,13 @@ public class SHA3SHAKE {
      * @return the desired hash value on a newly allocated byte array
      */
     public byte[] digest() {
+
+        if (pos != 0) {
+            pad();
+            keccakf();
+        }
+
+
         return null;
     }
 
@@ -377,11 +378,11 @@ public class SHA3SHAKE {
         return result;
     }
 
-    private void pad(int remainingBytes) {
+    private void pad() {
         // coordinates for 0x06 padding
-        int y = (remainingBytes / 8) % 5;
-        int x = (remainingBytes / 8) / 5;
-        int z = (remainingBytes % 8) * 8;
+        int y = (pos / 8) % 5;
+        int x = (pos / 8) / 5;
+        int z = (pos % 8) * 8;
 
         // if the last byte has a value of zero,
         // ignore it and put the padding there.
@@ -394,5 +395,8 @@ public class SHA3SHAKE {
         int rateZ = ((rate_bytes - 1) % 8) * 8;
 
         state[rateY][rateX] ^= 0x80L << rateZ;
+
+        printState();
+        printLanes();
     }
 }
