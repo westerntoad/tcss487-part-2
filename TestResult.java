@@ -24,7 +24,7 @@ public class TestResult {
     }
 
     public boolean passed() {
-        return this.result.equals( this.expected );
+        return Arrays.equals(this.result, this.expected);
     }
 
     @Override

@@ -107,6 +107,7 @@ public class SHA3SHAKE {
 
             if (blockSize == remainingBytes) {
                 pad(remainingBytes);
+                /* debug */
                 printState();
                 printLanes();
             }
@@ -131,14 +132,18 @@ public class SHA3SHAKE {
      * @param data byte-oriented data buffer
      * @param len  byte count on the buffer (starting at index 0)
      */
-    public void absorb(byte[] data, int len) { /* … */ }
+    public void absorb(byte[] data, int len) {
+        absorb(data, len, 0);
+    }
 
     /**
      * Update the SHAKE sponge with a byte-oriented data chunk.
      *
      * @param data byte-oriented data buffer
      */
-    public void absorb(byte[] data) { /* … */ }
+    public void absorb(byte[] data) {
+        absorb(data, data.length);
+    }
 
     /**
      * Squeeze a chunk of hashed bytes from the sponge.
@@ -170,7 +175,7 @@ public class SHA3SHAKE {
      * @return the val buffer containing the desired hash value
      */
     public byte[] digest(byte[] out) {
-        return squeeze(out, capacity / 16);
+        return null;
     }
 
     /**
@@ -179,7 +184,7 @@ public class SHA3SHAKE {
      * @return the desired hash value on a newly allocated byte array
      */
     public byte[] digest() {
-        return squeeze(capacity / 16);
+        return null;
     }
 
     /**
@@ -372,19 +377,6 @@ public class SHA3SHAKE {
         return result;
     }
 
-    private static int[] initPiOffset() {
-        int[] offsets = new int[25];
-        for (int i = 0; i < 25; i++) {
-            int x = i % 5;
-            int y = i / 5;
-
-            // /* debug */ System.out.printf("(x=%d, y=%d) => (x=%d, y=%d)\n", x, y, (x + 3 * y) % 5, x);
-            offsets[((x + 3 * y) % 5) + 5 * x] = i;
-        }
-
-        return offsets;
-    }
-
     private void pad(int remainingBytes) {
         // coordinates for 0x06 padding
         int y = (remainingBytes / 8) % 5;
@@ -393,11 +385,8 @@ public class SHA3SHAKE {
 
         // if the last byte has a value of zero,
         // ignore it and put the padding there.
-        if (state[y][x] == 0L) {
-            state[y][x] = 0x06L;
-        } else {
-            state[y][x] = 0x06L << z;
-        }
+        if (state[y][x] == 0L) state[y][x] = 0x06L;
+        else state[y][x] = 0x06L << z;
 
         // coordinates for 0x80 padding
         int rateY = ((rate_bytes - 1) / 8) / 5;
