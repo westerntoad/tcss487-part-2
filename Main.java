@@ -3,161 +3,202 @@ import java.io.*;
 
 public class Main {
 
+    /**
+     * HexFormat object to parse and format hex strings.
+     */
     public static final HexFormat HEXF = HexFormat.of();
 
-    private static final String[] SHA3_TEST_PATHS = {
-            "tests/sha-3bytetestvectors/SHA3_224ShortMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_384ShortMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_512ShortMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_224LongMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_256LongMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_384LongMsg.rsp",
-            "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp"
-    };
+    /**
+     * Enum to represent the different SHA3 versions.
+     * Each version has a bit-length, and a path to the test vectors.
+     */
+    private enum SHAVersion {
+        SHA224(224),
+        SHA256(256),
+        SHA384(384),
+        SHA512(512);
 
-    private static void sampleTest() {
-        //byte[] message = HEXF.parseHex("3286B7A6");
-        //byte[] message = HEXF.parseHex("00");
-        //System.out.println(Arrays.toString(message));
-        //byte[] message = HEXF.parseHex("197b5853");
-        //byte[] message = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434aa7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
-        //byte[] message = HEXF.parseHex("A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3A3");
-        String a3 = "A3".repeat(200);
-        byte[] m2 = HEXF.parseHex(a3);
-        byte[] result = SHA3SHAKE.SHA3(256, m2, null);
-        //byte[] expected = HEXF.parseHex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
-        byte[] expected = HEXF.parseHex("79F38ADEC5C20307A98EF76E8324AFBFD46CFD81B22E3973C65FA1BD9DE31787");
-        String name = "SHA3-" + 256 + " L=" + 1600;
-        TestResult tr = new TestResult(name, result, expected);
-        System.out.println(tr);
+        private final int bits;
+        private final String shortPath;
+        private final String longPath;
+        private final String montePath;
 
+        SHAVersion(int bits) {
+            this.bits = bits;
+            shortPath = SHAVectorPaths.get(bits)[0];
+            longPath = SHAVectorPaths.get(bits)[1];
+            montePath = SHAVectorPaths.get(bits)[2];
+        }
     }
 
-    private static void testSHA256() throws FileNotFoundException {
-
-        String[] SHA224paths = {
-                "tests/sha-3bytetestvectors/SHA3_224ShortMsg.rsp",
-                "tests/sha-3bytetestvectors/SHA3_224LongMsg.rsp"
-        };
-        String[] SHA256paths = {
-                "tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp",
-                "tests/sha-3bytetestvectors/SHA3_256LongMsg.rsp"
-        };
-        String[] SHA384paths = {
-                "tests/sha-3bytetestvectors/SHA3_384ShortMsg.rsp",
-                "tests/sha-3bytetestvectors/SHA3_384LongMsg.rsp"
-        };
-        String[] SHA512paths = {
-                "tests/sha-3bytetestvectors/SHA3_512ShortMsg.rsp",
-                "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp"
-        };
-
-        String monte224 = "tests/sha-3bytetestvectors/SHA3_224Monte.rsp";
-        String monte256 = "tests/sha-3bytetestvectors/SHA3_256Monte.rsp";
-        String monte384 = "tests/sha-3bytetestvectors/SHA3_384Monte.rsp";
-        String monte512 = "tests/sha-3bytetestvectors/SHA3_512Monte.rsp";
-
-        testSHA3ShortLong(SHA224paths, 224);
-        testSHA3ShortLong(SHA256paths, 256);
-        testSHA3ShortLong(SHA384paths, 384);
-        testSHA3ShortLong(SHA512paths, 512);
-        testSHA3Monte(monte224, 224);
-        testSHA3Monte(monte256, 256);
-        testSHA3Monte(monte384, 384);
-        testSHA3Monte(monte512, 512);
+    /**
+     * Class to represent a Known Answer Test Vector.
+     * Each vector has a list of message lengths, messages, and expected message digests.
+     */
+    private record KATVector(List<Integer> lengths, List<String> messages, List<String> expected) {
     }
 
-    private static void testSHA3ShortLong(String[] paths, int suffix) throws FileNotFoundException {
+    /**
+     * Class to represent a Monte Carlo Test Vector.
+     * Each vector has a seed and a list of message digests.
+     */
+    private record MonteVector(String seed, List<String> messageDigests) {
+    }
 
-        int testCount = 0;
-        int passedTests = 0;
-
-        ArrayList<Integer> vectorLengths = new ArrayList<>();
-        ArrayList<String> vectorMessages = new ArrayList<>();
-        ArrayList<String> vectorExpected = new ArrayList<>();
-        ArrayList<Integer> failedTests = new ArrayList<>();
-
-        Scanner scanner;
-        for (String path : paths) {
-            scanner = new Scanner(new File(path));
-            while(scanner.hasNextLine()) {
-                String line = scanner.nextLine().trim();
-                if (line.startsWith("Len")) {
-                    int len = Integer.parseInt(line.split(" = ")[1]);
-                    vectorLengths.add(len);
-                } else if (line.startsWith("Msg")) {
-                    String message = line.split(" = ")[1];
-                    vectorMessages.add(message);
-                } else if (line.startsWith("MD")) {
-                    String md = line.split(" = ")[1];
-                    vectorExpected.add(md);
-                }
+    /**
+     * Map to store the paths to the SHA3 test vectors.
+     */
+    private static final Map<Integer, String[]> SHAVectorPaths = Map.of(
+            224, new String[]{
+                    "tests/sha-3bytetestvectors/SHA3_224ShortMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_224LongMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_224Monte.rsp"
+            },
+            256, new String[]{
+                    "tests/sha-3bytetestvectors/SHA3_256ShortMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_256LongMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_256Monte.rsp"
+            },
+            384, new String[]{
+                    "tests/sha-3bytetestvectors/SHA3_384ShortMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_384LongMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_384Monte.rsp"
+            },
+            512, new String[]{
+                    "tests/sha-3bytetestvectors/SHA3_512ShortMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp",
+                    "tests/sha-3bytetestvectors/SHA3_512Monte.rsp"
             }
-            scanner.close();
-        }
+    );
 
+    /**
+     * Parse a Known Answer Test Vector from a file.
+     * @param path                      the path to the test vector file.
+     * @return                          the parsed test vector.
+     * @throws FileNotFoundException    if the file is not found.
+     */
+    private static KATVector parseKATVector(String path) throws FileNotFoundException {
 
-        testCount = vectorLengths.size();
-        ArrayList<TestResult> results = new ArrayList<>();
-
-        Long start = System.nanoTime();
-        for (int i = 0; i < testCount; i++) {
-            byte[] message = HEXF.parseHex(vectorMessages.get(i));
-            byte[] expected = HEXF.parseHex(vectorExpected.get(i));
-            byte[] actual = SHA3SHAKE.SHA3(suffix, message, null);
-            String name = "SHA3-" + suffix + " L=" + vectorLengths.get(i);
-            TestResult tr = new TestResult(name, actual, expected);
-            if (tr.passed()) passedTests++;
-            else failedTests.add(vectorLengths.get(i));
-            results.add(tr);
-        }
-        Long end = System.nanoTime();
-
-        for (TestResult tr : results) {
-            if (!tr.passed()) System.out.println(tr);
-        }
-
-        double time = (end - start) / 1E6;
-        System.out.println(passedTests + " of " + testCount + " SHA3-" + suffix + " Known Answer Tests passed in " + time + " milliseconds.");
-        if (!failedTests.isEmpty()) System.out.println("**** TESTS FAILED ****");
-        for (Integer length : failedTests) {
-            System.out.println("L="+length);
-        }
-    }
-
-    private static void testSHA3Monte(String path, int suffix) throws FileNotFoundException {
-
-        String seed = "";
-        ArrayList<String> messageDigests = new ArrayList<>();
+        List<Integer> vectorLengths = new ArrayList<>();
+        List<String> vectorMessages = new ArrayList<>();
+        List<String> vectorExpected = new ArrayList<>();
 
         Scanner scanner;
         scanner = new Scanner(new File(path));
-        while(scanner.hasNextLine()) {
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine().trim();
+            if (line.startsWith("Len")) {
+                int len = Integer.parseInt(line.split(" = ")[1]);
+                vectorLengths.add(len);
+            } else if (line.startsWith("Msg")) {
+                String message = line.split(" = ")[1];
+                vectorMessages.add(message);
+            } else if (line.startsWith("MD")) {
+                String md = line.split(" = ")[1];
+                vectorExpected.add(md);
+            }
+        }
+        scanner.close();
+        return new KATVector(vectorLengths, vectorMessages, vectorExpected);
+    }
+
+    /**
+     * Parse a Monte Carlo Test Vector from a file.
+     * @param path                      the path to the test vector file.
+     * @return                          the parsed test vector.
+     * @throws FileNotFoundException    if the file is not found.
+     */
+    private static MonteVector parseMonteVector(String path) throws FileNotFoundException {
+
+        List<String> seed = new ArrayList<>();
+        List<String> messageDigests = new ArrayList<>();
+
+        Scanner scanner;
+        scanner = new Scanner(new File(path));
+        while (scanner.hasNextLine()) {
             String line = scanner.nextLine().trim();
             if (line.startsWith("Seed")) {
-                seed = line.split(" = ")[1];
+                seed.add(line.split(" = ")[1]);
             } else if (line.startsWith("MD")) {
                 messageDigests.add(line.split(" = ")[1]);
             }
         }
         scanner.close();
 
-        boolean passed = true;
+        return new MonteVector(seed.getFirst(), messageDigests);
+    }
+
+    /**
+     * Run the SHA3 Known Answer Tests and Monte Carlo Tests.
+     * @throws FileNotFoundException if the test vector files are not found.
+     */
+    private static void testSHA3() throws FileNotFoundException {
+        for (SHAVersion version : SHAVersion.values()) {
+            KATVector parsedShort = parseKATVector(version.shortPath);
+            KATVector parsedLong = parseKATVector(version.longPath);
+            MonteVector parsedMonte = parseMonteVector(version.montePath);
+
+            System.out.println("////////// SHA3-" + version.bits + " TESTS //////////");
+            runSHA3KAT(version.bits, parsedShort);
+            runSHA3KAT(version.bits, parsedLong);
+            runSHA3Monte(version.bits, parsedMonte);
+            System.out.println();
+        }
+    }
+
+    /**
+     * Run the SHA3 Known Answer Tests for a given suffix and vector.
+     * @param suffix the bit-length of the SHA3 version.
+     * @param vector the test vector to run.
+     */
+    private static void runSHA3KAT(int suffix, KATVector vector) {
+        List<Integer> failedTests = new ArrayList<>();
+        int testCount = vector.lengths.size();
+        int passedTests = 0;
 
         Long start = System.nanoTime();
-        for (int i = 0; i < messageDigests.size(); i++) {
+        for (int i = 0; i < testCount; i++) {
+            byte[] message = HEXF.parseHex(vector.messages.get(i));
+            byte[] expected = HEXF.parseHex(vector.expected.get(i));
+            byte[] actual = SHA3SHAKE.SHA3(suffix, message, null);
+            String name = "SHA3-" + suffix + " L=" + vector.lengths.get(i);
+            TestResult tr = new TestResult(name, actual, expected);
+            if (tr.passed()) passedTests++;
+            else failedTests.add(vector.lengths.get(i));
+        }
+        Long end = System.nanoTime();
 
-            byte[] actual = (i == 0) ? HEXF.parseHex(seed) : HEXF.parseHex(messageDigests.get(i-1));
+        double time = (end - start) / 1E6;
+        System.out.println(passedTests + " of " + testCount + " SHA3-" + suffix
+                + " Known Answer Tests passed in " + time + " milliseconds.");
+        if (!failedTests.isEmpty()) System.out.println("**** TESTS FAILED ****");
+        for (Integer length : failedTests) {
+            System.out.println("L=" + length);
+        }
+    }
 
+    /**
+     * Run the SHA3 Monte Carlo Tests for a given suffix and vector.
+     * @param suffix the bit-length of the SHA3 version.
+     * @param vector the test vector to run.
+     */
+    private static void runSHA3Monte(int suffix, MonteVector vector) {
+        boolean passed = true;
+        String seed = vector.seed;
+        List<String> digests = vector.messageDigests;
+
+        Long start = System.nanoTime();
+        for (int i = 0; i < digests.size(); i++) {
+
+            byte[] actual = (i == 0) ? HEXF.parseHex(seed) : HEXF.parseHex(digests.get(i - 1));
             for (int j = 0; j < 1000; j++) {
                 actual = SHA3SHAKE.SHA3(suffix, actual, null);
             }
-
-            byte[] expected = HEXF.parseHex(messageDigests.get(i));
+            byte[] expected = HEXF.parseHex(digests.get(i));
 
             String name = "SHA3-" + suffix + " L=" + suffix;
             TestResult tr = new TestResult(name, actual, expected);
+
             if (!tr.passed()) {
                 System.out.println("Monte " + suffix + " failed at checkpoint #" + i);
                 passed = false;
@@ -170,9 +211,10 @@ public class Main {
             double timeMillis = (end - start) / 1E6;
             double timeSeconds = (end - start) / 1E9;
             System.out.println("SHA3-" + suffix + " Monte test passed in " + timeMillis
-                    + " milliseconds (~" + (int) (1_000_000/timeSeconds) + " tests per second).");
+                    + " milliseconds (~" + (int) (1_000_000 / timeSeconds) + " tests per second).");
         }
     }
+
 
 
     private static List<TestResult> testFromFileSHA3(File file) {
@@ -210,40 +252,11 @@ public class Main {
         return results;
     }
 
-    private static void runAllTests(boolean additionalInfo) {
-        int numPassed = 0;
-        int totalTests = 0;
-
-        for (String path : SHA3_TEST_PATHS) {
-            File file = new File(path);
-            for (TestResult result : testFromFileSHA3(file)) {
-                if (result.passed()) {
-                    numPassed++;
-                }
-
-                totalTests++;
-                if (additionalInfo) {
-                    System.out.println(result.toString());
-                }
-            }
-        }
-
-        // TODO more test files and suffixes
-
-        if (numPassed == totalTests) {
-            System.out.println("Passed all tests.");
-        } else {
-            System.out.println("Passed " + numPassed + " of " + totalTests + " total tests.");
-        }
-    }
-
     public static void main(String[] args) throws FileNotFoundException {
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "test":
-                    //runAllTests(true);
-                    //sampleTest();
-                    testSHA256();
+                    testSHA3();
                     break;
                 default:
                     continue;
