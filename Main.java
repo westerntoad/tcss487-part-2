@@ -1,5 +1,3 @@
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.*;
 import java.io.*;
 
@@ -55,13 +53,22 @@ public class Main {
                 "tests/sha-3bytetestvectors/SHA3_512LongMsg.rsp"
         };
 
-        testHelper(SHA224paths, 224);
-        testHelper(SHA256paths, 256);
-        testHelper(SHA384paths, 384);
-        testHelper(SHA512paths, 512);
+        String monte224 = "tests/sha-3bytetestvectors/SHA3_224Monte.rsp";
+        String monte256 = "tests/sha-3bytetestvectors/SHA3_256Monte.rsp";
+        String monte384 = "tests/sha-3bytetestvectors/SHA3_384Monte.rsp";
+        String monte512 = "tests/sha-3bytetestvectors/SHA3_512Monte.rsp";
+
+        testSHA3ShortLong(SHA224paths, 224);
+        testSHA3ShortLong(SHA256paths, 256);
+        testSHA3ShortLong(SHA384paths, 384);
+        testSHA3ShortLong(SHA512paths, 512);
+        testSHA3Monte(monte224, 224);
+        testSHA3Monte(monte256, 256);
+        testSHA3Monte(monte384, 384);
+        testSHA3Monte(monte512, 512);
     }
 
-    private static void testHelper(String[] paths, int suffix) throws FileNotFoundException {
+    private static void testSHA3ShortLong(String[] paths, int suffix) throws FileNotFoundException {
 
         int testCount = 0;
         int passedTests = 0;
@@ -112,12 +119,61 @@ public class Main {
         }
 
         double time = (end - start) / 1E6;
-        System.out.println(passedTests + " of " + testCount + " SHA3-" + suffix + " tests passed in " + time + " milliseconds.");
+        System.out.println(passedTests + " of " + testCount + " SHA3-" + suffix + " Known Answer Tests passed in " + time + " milliseconds.");
         if (!failedTests.isEmpty()) System.out.println("**** TESTS FAILED ****");
         for (Integer length : failedTests) {
             System.out.println("L="+length);
         }
     }
+
+    private static void testSHA3Monte(String path, int suffix) throws FileNotFoundException {
+
+        String seed = "";
+        ArrayList<String> messageDigests = new ArrayList<>();
+
+        Scanner scanner;
+        scanner = new Scanner(new File(path));
+        while(scanner.hasNextLine()) {
+            String line = scanner.nextLine().trim();
+            if (line.startsWith("Seed")) {
+                seed = line.split(" = ")[1];
+            } else if (line.startsWith("MD")) {
+                messageDigests.add(line.split(" = ")[1]);
+            }
+        }
+        scanner.close();
+
+        boolean passed = true;
+
+        Long start = System.nanoTime();
+        for (int i = 0; i < messageDigests.size(); i++) {
+
+            byte[] actual = (i == 0) ? HEXF.parseHex(seed) : HEXF.parseHex(messageDigests.get(i-1));
+
+            for (int j = 0; j < 1000; j++) {
+                actual = SHA3SHAKE.SHA3(suffix, actual, null);
+            }
+
+            byte[] expected = HEXF.parseHex(messageDigests.get(i));
+
+            String name = "SHA3-" + suffix + " L=" + suffix;
+            TestResult tr = new TestResult(name, actual, expected);
+            if (!tr.passed()) {
+                System.out.println("Monte " + suffix + " failed at checkpoint #" + i);
+                passed = false;
+                break;
+            }
+        }
+        Long end = System.nanoTime();
+
+        if (passed) {
+            double timeMillis = (end - start) / 1E6;
+            double timeSeconds = (end - start) / 1E9;
+            System.out.println("SHA3-" + suffix + " Monte test passed in " + timeMillis
+                    + " milliseconds (~" + (int) (1_000_000/timeSeconds) + " tests per second).");
+        }
+    }
+
 
     private static List<TestResult> testFromFileSHA3(File file) {
         List<TestResult> results = new ArrayList<TestResult>();
@@ -179,11 +235,6 @@ public class Main {
         } else {
             System.out.println("Passed " + numPassed + " of " + totalTests + " total tests.");
         }
-    }
-
-    private static void testSHA3Short() {
-        int passed = 0;
-        int failed = 0;
     }
 
     public static void main(String[] args) throws FileNotFoundException {

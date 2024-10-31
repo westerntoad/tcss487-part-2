@@ -408,8 +408,8 @@ public class SHA3SHAKE {
         else state[y][x] ^= padStart << z;
 
         /* coordinates for end of padding */
-        int rateY = ((rate_bytes - 1) / 8) / 5;
         int rateX = ((rate_bytes - 1) / 8) % 5;
+        int rateY = ((rate_bytes - 1) / 8) / 5;
         int rateZ = ((rate_bytes - 1) % 8) * 8;
 
         state[rateY][rateX] ^= 0x80L << rateZ;
