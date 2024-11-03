@@ -272,32 +272,93 @@ public class Main {
             byte[] output = SHA3SHAKE.SHA3(suffix, contents, null);
             System.out.println(HEXF.formatHex(output));
         } catch (IOException e) {
-            System.out.println("Invalid path to file. Please try again.");
+            System.out.println("Error: Invalid path to file. Please try again.");
         }
+    }
 
+    private static final void macFromFile(String dir, String pass, int suffix, int length) {
+        if (length <= 0) {
+            System.out.println("Error: MAC tag lengths must be positive.");
+        }
+        try {
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            SHA3SHAKE sponge = new SHA3SHAKE();
+            sponge.init(suffix);
+            sponge.absorb(pass.getBytes());
+            sponge.absorb(contents);
+            byte[] mac = sponge.squeeze(length);
+
+            System.out.println(HEXF.formatHex(mac));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
     }
 
     public static void main(String[] args) throws FileNotFoundException {
         switch (args[0].toLowerCase()) {
             case "hash":
                 if (args.length == 3) {
+                    // # arguments
+                    // 0 = "hash"
+                    // 1 = security level
+                    // 2 = file directory
+
                     System.out.println(args[1]);
                     if (!args[1].matches("224|256|384|512")) {
-                        System.out.println("Invalid security level. Implemented security levels include: 224, 256, 384, or 512.");
+                        System.out.println("Error: Invalid security level for hashing function. Implemented security levels include: 224, 256, 384, or 512.");
                     } else {
                         hash(args[2], Integer.valueOf(args[1]));
                     }
                 } else if (args.length == 2) {
-                    // default hashing suffix is 512
+                    // # arguments
+                    // 0 = "hash"
+                    // 1 = file directory
+                    
+                    // default security level is 512
                     hash(args[1], 512);
                 } else if (args.length == 1){
-                    System.out.println("Please provide path to the file to hash.");
+                    System.out.println("Error: Please provide path to the file to hash.");
                 } else {
-                    System.out.println("Invalid number of arguments.");
+                    System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
             case "mac":
-                // TODO
+                if (args.length == 5) {
+                    // # arguments
+                    // 0 = "mac"
+                    // 1 = security level
+                    // 2 = passkey
+                    // 3 = file directory
+                    // 4 = number of outputted bits
+                    
+                    if (!args[1].matches("128|256")) {
+                        System.out.println("Error: Invalid security level for Message Authentication Code. Implemented security levels include: 224, 256, 384, or 512.");
+                    } else {
+                        try {
+                            int length = Integer.parseInt(args[4]);
+                            int suffix = Integer.parseInt(args[1]);
+                            macFromFile(args[3], args[2], suffix, length);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Error parsing MAC output length.");
+                        }
+                    }
+                } else if (args.length == 4) {
+                    // # arguments
+                    // 0 = "mac"
+                    // 1 = passkey
+                    // 2 = file directory
+                    // 3 = number of outputted bits
+                    
+                    // default security level is 256
+                    try {
+                        int length = Integer.parseInt(args[3]);
+                        macFromFile(args[2], args[1], 256, length);
+                    } catch (NumberFormatException e) {
+                        System.out.println("Error parsing MAC output length.");
+                    }
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
+                }
                 break;
             case "test":
                 //testSHA3();
@@ -305,6 +366,7 @@ public class Main {
                 simpleSHAKETest();
                 break;
             default:
+                System.out.println("Error: First argument not a valid application feature.");
                 break;
         }
     }
