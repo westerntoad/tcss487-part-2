@@ -1,5 +1,7 @@
 import java.util.*;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class Main {
 
@@ -219,40 +221,40 @@ public class Main {
 
 
 
-    private static List<TestResult> testFromFileSHA3(File file) {
-        List<TestResult> results = new ArrayList<TestResult>();
+    // private static List<TestResult> testFromFileSHA3(File file) {
+    //     List<TestResult> results = new ArrayList<TestResult>();
 
-        try {
-            Scanner scanner = new Scanner(file);
-            String line = scanner.nextLine();
+    //     try {
+    //         Scanner scanner = new Scanner(file);
+    //         String line = scanner.nextLine();
 
-            while (!line.isEmpty() && line.charAt(0) != '[') {
-                line = scanner.nextLine();
-            }
-            line = scanner.nextLine();
+    //         while (!line.isEmpty() && line.charAt(0) != '[') {
+    //             line = scanner.nextLine();
+    //         }
+    //         line = scanner.nextLine();
 
-            int suffix = Integer.parseInt(line.substring(5, 8));
+    //         int suffix = Integer.parseInt(line.substring(5, 8));
 
-            scanner.nextLine();
+    //         scanner.nextLine();
 
-            // loop
-            while (scanner.hasNextLine()) {
-                int messageLength = Integer.parseInt(scanner.nextLine().substring(6));
-                byte[] message = HEXF.parseHex(scanner.nextLine().substring(6));
-                byte[] result = SHA3SHAKE.SHA3(suffix, message, null);
-                byte[] expected = HEXF.parseHex(scanner.nextLine().substring(5));
-                String name = "SHA3-" + suffix + " L=" + messageLength;
-                results.add(new TestResult(name, result, expected));
+    //         // loop
+    //         while (scanner.hasNextLine()) {
+    //             int messageLength = Integer.parseInt(scanner.nextLine().substring(6));
+    //             byte[] message = HEXF.parseHex(scanner.nextLine().substring(6));
+    //             byte[] result = SHA3SHAKE.SHA3(suffix, message, null);
+    //             byte[] expected = HEXF.parseHex(scanner.nextLine().substring(5));
+    //             String name = "SHA3-" + suffix + " L=" + messageLength;
+    //             results.add(new TestResult(name, result, expected));
 
-                scanner.nextLine();
-            }
-        } catch (FileNotFoundException e) {
-            System.err.println("Could not find file to test.");
-            e.printStackTrace();
-        }
+    //             scanner.nextLine();
+    //         }
+    //     } catch (FileNotFoundException e) {
+    //         System.err.println("Could not find file to test.");
+    //         e.printStackTrace();
+    //     }
 
-        return results;
-    }
+    //     return results;
+    // }
 
     private static void simpleSHAKETest() {
         byte[] message = HEXF.parseHex("8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4");
@@ -263,22 +265,47 @@ public class Main {
         System.out.println(tr);
 
     }
+    
+    private static final void hash(String dir, int suffix) {
+        try {
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            byte[] output = SHA3SHAKE.SHA3(suffix, contents, null);
+            System.out.println(HEXF.formatHex(output));
+        } catch (IOException e) {
+            System.out.println("Invalid path to file. Please try again.");
+        }
 
-    private static void testSHAKE() {
-        
     }
 
     public static void main(String[] args) throws FileNotFoundException {
-        for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "test":
-                    //testSHA3();
-                    System.out.println("Testing SHAKE:");
-                    simpleSHAKETest();
-                    break;
-                default:
-                    continue;
-            }
+        switch (args[0].toLowerCase()) {
+            case "hash":
+                if (args.length == 3) {
+                    System.out.println(args[1]);
+                    if (!args[1].matches("224|256|384|512")) {
+                        System.out.println("Invalid security level. Implemented security levels include: 224, 256, 384, or 512.");
+                    } else {
+                        hash(args[2], Integer.valueOf(args[1]));
+                    }
+                } else if (args.length == 2) {
+                    // default hashing suffix is 512
+                    hash(args[1], 512);
+                } else if (args.length == 1){
+                    System.out.println("Please provide path to the file to hash.");
+                } else {
+                    System.out.println("Invalid number of arguments.");
+                }
+                break;
+            case "mac":
+                // TODO
+                break;
+            case "test":
+                //testSHA3();
+                System.out.println("Testing SHAKE:");
+                simpleSHAKETest();
+                break;
+            default:
+                break;
         }
     }
 
