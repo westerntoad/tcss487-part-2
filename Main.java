@@ -2,6 +2,7 @@ import java.util.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
 
 public class Main {
 
@@ -294,6 +295,56 @@ public class Main {
         }
     }
 
+    private static final void encrypt(String dir, String pass) {
+        try {
+            SecureRandom random = new SecureRandom();
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            /* debug */ System.out.println(contents.length);
+            byte[] nonce = new byte[16];
+            random.nextBytes(nonce);
+            byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
+
+            SHA3SHAKE sponge = new SHA3SHAKE();
+            sponge.init(128);
+            sponge.absorb(nonce);
+            sponge.absorb(hashedKey);
+            byte[] cipher = sponge.squeeze(contents.length);
+            ///* debug */ System.out.println(HEXF.formatHex(cipher));
+
+            for (int i = 0; i < contents.length; i++) {
+                contents[i] ^= cipher[i];
+            }
+            
+            System.out.println(new String(contents));
+            System.out.print(HEXF.formatHex(nonce));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
+    private static final void decrypt(String dir, String pass, byte[] nonce) {
+        try {
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            /* debug */ System.out.println(contents.length);
+            byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
+
+            SHA3SHAKE sponge = new SHA3SHAKE();
+            sponge.init(128);
+            sponge.absorb(nonce);
+            sponge.absorb(hashedKey);
+            byte[] cipher = sponge.squeeze(contents.length);
+            ///* debug */ System.out.println(HEXF.formatHex(cipher));
+
+            for (int i = 0; i < contents.length; i++) {
+                contents[i] ^= cipher[i];
+            }
+            
+            System.out.print(new String(contents));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
     public static void main(String[] args) throws FileNotFoundException {
         switch (args[0].toLowerCase()) {
             case "hash":
@@ -356,6 +407,34 @@ public class Main {
                     } catch (NumberFormatException e) {
                         System.out.println("Error parsing MAC output length.");
                     }
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
+                }
+                break;
+            case "encrypt":
+                if (args.length == 3) {
+                    // # arguments
+                    // 0 = "encrypt"
+                    // 1 = passphrase
+                    // 2 = file directory
+
+                    encrypt(args[2], args[1]);
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
+                }
+                // DEBUG
+                // cipher = 38f2f5c0d9c5
+                // nonce = a7bcf3afb8a3fca71de7ab251c018da1
+                break;
+            case "decrypt":
+                if (args.length == 4) {
+                    // # arguments
+                    // 0 = "decrypt"
+                    // 1 = passphrase
+                    // 2 = file directory
+                    // 3 = random nonce from encryption
+
+                    decrypt(args[2], args[1], HEXF.parseHex(args[3]));
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
