@@ -255,9 +255,9 @@ public class Main {
     }
 
     private static void simpleSHAKETest() {
-        byte[] message = HEXF.parseHex("afc9ef4e2e46c719120b68a65aa872273d0873fc6ea353859ff6f034443005e6");
-        byte[] expected = HEXF.parseHex("45c65255731e3679b4662f55b02bc5d1c8038a1d778fe91144a5c7d3a286c78c54f5213513");
-        byte[] actual = SHA3SHAKE.SHAKE(256, message, 296, null);
+        byte[] message = HEXF.parseHex("8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4");
+        byte[] expected = HEXF.parseHex("2e975f6a8a14f0704d51b13667d8195c219f71e6345696c49fa4b9d08e9225d3d39393425152c97e71dd24601c11abcfa0f12f53c680bd3ae757b8134a9c10d429615869217fdd5885c4db174985703a6d6de94a667eac3023443a8337ae1bc601b76d7d38ec3c34463105f0d3949d78e562a039e4469548b609395de5a4fd43c46ca9fd6ee29ada5efc07d84d553249450dab4a49c483ded250c9338f85cd937ae66bb436f3b4026e859fda1ca571432f3bfc09e7c03ca4d183b741111ca0483d0edabc03feb23b17ee48e844ba2408d9dcfd0139d2e8c7310125aee801c61ab7900d1efc47c078281766f361c5e6111346235e1dc38325666c");
+        byte[] actual = SHA3SHAKE.SHAKE(256, message, 2000, null);
         String name = "SHAKE-" + 256 + " L=" + 0;
         TestResult tr = new TestResult(name, actual, expected);
         System.out.println(tr);

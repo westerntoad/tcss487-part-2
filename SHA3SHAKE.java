@@ -161,19 +161,19 @@ public class SHA3SHAKE {
         keccakf();
 
         outer:
-        for (int numSqueezes = 0; numSqueezes <= len / 200; numSqueezes++) {
-            int i = 0;
+        for (int numSqueezes = 0; numSqueezes <= len / rate_bytes; numSqueezes++) {
+            int squeezedBytes = 0;
             for (long[] lane : state) {
                 for (long value : lane) {
                     byte[] temp = longToBytes(value);
 
-                    for (int j = temp.length - 1; j >= 0 && i < out.length; j--) {
-                        int idx = i + numSqueezes * 200;
-                        if (idx > out.length)
+                    for (int j = temp.length - 1; j >= 0; j--) {
+                        int idx = squeezedBytes + numSqueezes * rate_bytes;
+                        if (idx >= out.length)
                             break outer;
 
-                        out[i + (numSqueezes * 200)] = temp[j];
-                        i++;
+                        out[idx] = temp[j];
+                        squeezedBytes++;
                     }
                 }
             }
