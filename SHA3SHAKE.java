@@ -159,26 +159,28 @@ public class SHA3SHAKE {
         byte[] out = new byte[len];
         pad(false);
         keccakf();
+        int squeezedBytes = 0;
 
         outer:
         for (int numSqueezes = 0; numSqueezes <= len / rate_bytes; numSqueezes++) {
-            int squeezedBytes = 0;
             for (long[] lane : state) {
                 for (long value : lane) {
                     byte[] temp = longToBytes(value);
 
                     for (int j = temp.length - 1; j >= 0; j--) {
-                        int idx = squeezedBytes + numSqueezes * rate_bytes;
-                        if (idx >= out.length)
+                        if (squeezedBytes >= out.length)
                             break outer;
 
-                        out[idx] = temp[j];
+                        out[squeezedBytes] = temp[j];
                         squeezedBytes++;
                     }
                 }
             }
-            
-            keccakf();
+
+            // Apply keccakf again only if more squeezing is needed
+            if (squeezedBytes < len) {
+                keccakf();
+            }
         }
 
         return out;
@@ -246,7 +248,6 @@ public class SHA3SHAKE {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
         sponge.absorb(X);
-
         return sponge.squeeze(L / 8);
     }
 

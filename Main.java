@@ -48,8 +48,8 @@ public class Main {
             this.bits = bits;
             shortPath = SHAKEVectorPaths.get(bits)[0];
             longPath = SHAKEVectorPaths.get(bits)[1];
-            montePath = SHAKEVectorPaths.get(bits)[2];
-            variablePath = SHAKEVectorPaths.get(bits)[3];
+            variablePath = SHAKEVectorPaths.get(bits)[2];
+            montePath = SHAKEVectorPaths.get(bits)[3];
         }
     }
 
@@ -57,14 +57,21 @@ public class Main {
      * Class to represent a Known Answer Test Vector.
      * Each vector has a list of message lengths, messages, and expected message digests.
      */
-    private record KATVector(List<Integer> lengths, List<String> messages, List<String> expected) {
+    private record SHA3KATVector(List<Integer> lengths, List<String> messages, List<String> expected) {
     }
 
     /**
      * Class to represent a Monte Carlo Test Vector.
      * Each vector has a seed and a list of message digests.
      */
-    private record MonteVector(String seed, List<String> messageDigests) {
+    private record SHA3MonteVector(String seed, List<String> messageDigests) {
+    }
+
+    private record SHAKEKATVector(List<Integer> lengths, List<String> messages, List<String> expected,
+                                  List<Integer> outLength) {
+    }
+
+    private record SHAKEMonteVector(String seed, List<String> messageDigests, List<Integer> outputLengths) {
     }
 
     /**
@@ -97,25 +104,26 @@ public class Main {
             128, new String[]{
                     "tests/shakebytetestvectors/SHAKE128ShortMsg.rsp",
                     "tests/shakebytetestvectors/SHAKE128LongMsg.rsp",
-                    "tests/shakebytetestvectors/SHAKE128Monte.rsp",
-                    "tests/shakebytetestvectors/SHAKE128VariableOut.rsp"
+                    "tests/shakebytetestvectors/SHAKE128VariableOut.rsp",
+                    "tests/shakebytetestvectors/SHAKE128Monte.rsp"
             },
-            256, new String[] {
+            256, new String[]{
                     "tests/shakebytetestvectors/SHAKE256ShortMsg.rsp",
                     "tests/shakebytetestvectors/SHAKE256LongMsg.rsp",
-                    "tests/shakebytetestvectors/SHAKE256Monte.rsp",
-                    "tests/shakebytetestvectors/SHAKE256VariableOut.rsp"
+                    "tests/shakebytetestvectors/SHAKE256VariableOut.rsp",
+                    "tests/shakebytetestvectors/SHAKE256Monte.rsp"
             }
     );
 
 
     /**
      * Parse a Known Answer Test Vector from a file.
-     * @param path                      the path to the test vector file.
-     * @return                          the parsed test vector.
-     * @throws FileNotFoundException    if the file is not found.
+     *
+     * @param path the path to the test vector file.
+     * @return the parsed test vector.
+     * @throws FileNotFoundException if the file is not found.
      */
-    private static KATVector parseSHA3KATVector(String path) throws FileNotFoundException {
+    private static SHA3KATVector parseSHA3KATVector(String path) throws FileNotFoundException {
 
         List<Integer> vectorLengths = new ArrayList<>();
         List<String> vectorMessages = new ArrayList<>();
@@ -137,17 +145,20 @@ public class Main {
             }
         }
         scanner.close();
-        return new KATVector(vectorLengths, vectorMessages, vectorExpected);
+        return new SHA3KATVector(vectorLengths, vectorMessages, vectorExpected);
     }
 
-    private static KATVector parseSHAKEKATVector(String path) throws FileNotFoundException {
+    private static SHAKEKATVector parseSHAKEKATVector(String path) throws FileNotFoundException {
 
         List<Integer> vectorLengths = new ArrayList<>();
         List<String> vectorMessages = new ArrayList<>();
         List<String> vectorExpected = new ArrayList<>();
-        List<String> outputLengths = new ArrayList<>();
+        List<Integer> outputBits = new ArrayList<>();
 
         Scanner scanner;
+        int outputLength = 0;
+        int inputLength = 0;
+
         scanner = new Scanner(new File(path));
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine().trim();
@@ -157,22 +168,42 @@ public class Main {
             } else if (line.startsWith("Msg")) {
                 String message = line.split(" = ")[1];
                 vectorMessages.add(message);
-            } else if (line.startsWith("MD")) {
+            } else if (line.startsWith("Output ")) {
                 String md = line.split(" = ")[1];
                 vectorExpected.add(md);
+            } else if (line.startsWith("[Output")) {
+                outputLength = Integer.parseInt(line.split(" = ")[1].replace("]", ""));
+            } else if (line.startsWith("Outputlen")) {
+                int length = Integer.parseInt(line.split(" = ")[1]);
+                outputBits.add(length);
+            }
+            else if (line.startsWith("[Input")) {
+                inputLength = Integer.parseInt(line.split(" = ")[1].replace("]", ""));
             }
         }
         scanner.close();
-        return new KATVector(vectorLengths, vectorMessages, vectorExpected);
+
+        if (outputLength != 0) {
+            for (int i = 0; i < vectorMessages.size(); i++) {
+                outputBits.add(outputLength);
+            }
+        } else if (inputLength != 0) {
+            for (int i = 0; i < vectorMessages.size(); i++) {
+                vectorLengths.add(inputLength);
+            }
+        }
+
+        return new SHAKEKATVector(vectorLengths, vectorMessages, vectorExpected, outputBits);
     }
 
     /**
      * Parse a Monte Carlo Test Vector from a file.
-     * @param path                      the path to the test vector file.
-     * @return                          the parsed test vector.
-     * @throws FileNotFoundException    if the file is not found.
+     *
+     * @param path the path to the test vector file.
+     * @return the parsed test vector.
+     * @throws FileNotFoundException if the file is not found.
      */
-    private static MonteVector parseMonteVector(String path) throws FileNotFoundException {
+    private static SHA3MonteVector parseMonteVector(String path) throws FileNotFoundException {
 
         List<String> seed = new ArrayList<>();
         List<String> messageDigests = new ArrayList<>();
@@ -189,19 +220,20 @@ public class Main {
         }
         scanner.close();
 
-        return new MonteVector(seed.get(0), messageDigests);
+        return new SHA3MonteVector(seed.get(0), messageDigests);
     }
 
-    
+
     /**
      * Run the SHA3 Known Answer Tests and Monte Carlo Tests.
+     *
      * @throws FileNotFoundException if the test vector files are not found.
      */
     private static void testSHA3() throws FileNotFoundException {
         for (SHAVersion version : SHAVersion.values()) {
-            KATVector parsedShort = parseSHA3KATVector(version.shortPath);
-            KATVector parsedLong = parseSHA3KATVector(version.longPath);
-            MonteVector parsedMonte = parseMonteVector(version.montePath);
+            SHA3KATVector parsedShort = parseSHA3KATVector(version.shortPath);
+            SHA3KATVector parsedLong = parseSHA3KATVector(version.longPath);
+            SHA3MonteVector parsedMonte = parseMonteVector(version.montePath);
 
             System.out.println("////////// SHA3-" + version.bits + " TESTS //////////");
             runSHA3KAT(version.bits, parsedShort);
@@ -212,12 +244,29 @@ public class Main {
         }
     }
 
+    private static void testSHAKE() throws FileNotFoundException {
+        for (SHAKEVersion version : SHAKEVersion.values()) {
+            SHAKEKATVector parsedShort = parseSHAKEKATVector(version.shortPath);
+            SHAKEKATVector parsedLong = parseSHAKEKATVector(version.longPath);
+            SHAKEKATVector parsedVariable = parseSHAKEKATVector(version.variablePath);
+            SHAKEKATVector parsedMonte = parseSHAKEKATVector(version.montePath);
+
+            System.out.println("////////// SHAKE-" + version.bits + " TESTS //////////");
+            runSHAKEKAT(version.bits, parsedShort);
+            runSHAKEKAT(version.bits, parsedLong);
+            runSHAKEKAT(version.bits, parsedVariable);
+            //runSHAKEMonte(version.bits, parsedMonte);
+            System.out.println();
+        }
+    }
+
     /**
      * Run the SHA3 Known Answer Tests for a given suffix and vector.
+     *
      * @param suffix the bit-length of the SHA3 version.
      * @param vector the test vector to run.
      */
-    private static void runSHA3KAT(int suffix, KATVector vector) {
+    private static void runSHA3KAT(int suffix, SHA3KATVector vector) {
         List<Integer> failedTests = new ArrayList<>();
         int testCount = vector.lengths.size();
         int passedTests = 0;
@@ -243,12 +292,40 @@ public class Main {
         }
     }
 
+    private static void runSHAKEKAT(int suffix, SHAKEKATVector vector) {
+        List<Integer> failedTests = new ArrayList<>();
+        int testCount = vector.lengths.size();
+        int passedTests = 0;
+
+        Long start = System.nanoTime();
+        for (int i = 0; i < testCount; i++) {
+            byte[] message = HEXF.parseHex(vector.messages.get(i));
+            byte[] expected = HEXF.parseHex(vector.expected.get(i));
+            int outLength = vector.outLength.get(i);
+            byte[] actual = SHA3SHAKE.SHAKE(suffix, message, outLength, null);
+            String name = "SHAKE-" + suffix + " L=" + vector.lengths.get(i);
+            TestResult tr = new TestResult(name, actual, expected);
+            if (tr.passed()) passedTests++;
+            else failedTests.add(vector.outLength.get(i));
+        }
+        Long end = System.nanoTime();
+
+        double time = (end - start) / 1E6;
+        System.out.println(passedTests + " of " + testCount + " SHAKE-" + suffix
+                + " Known Answer Tests passed in " + time + " milliseconds.");
+        if (!failedTests.isEmpty()) System.out.println("**** TESTS FAILED ****");
+        for (Integer length : failedTests) {
+            System.out.println("L=" + length);
+        }
+    }
+
     /**
      * Run the SHA3 Monte Carlo Tests for a given suffix and vector.
+     *
      * @param suffix the bit-length of the SHA3 version.
      * @param vector the test vector to run.
      */
-    private static void runSHA3Monte(int suffix, MonteVector vector) {
+    private static void runSHA3Monte(int suffix, SHA3MonteVector vector) {
         boolean passed = true;
         String seed = vector.seed;
         List<String> digests = vector.messageDigests;
@@ -280,7 +357,6 @@ public class Main {
                     + " milliseconds (~" + (int) (1_000_000 / timeSeconds) + " tests per second).");
         }
     }
-
 
 
     // private static List<TestResult> testFromFileSHA3(File file) {
@@ -327,7 +403,7 @@ public class Main {
         System.out.println(tr);
 
     }
-    
+
     private static final void hash(String dir, int suffix) {
         try {
             byte[] contents = Files.readAllBytes(Paths.get(dir));
@@ -360,7 +436,8 @@ public class Main {
         try {
             SecureRandom random = new SecureRandom();
             byte[] contents = Files.readAllBytes(Paths.get(dir));
-            /* debug */ System.out.println(contents.length);
+            /* debug */
+            System.out.println(contents.length);
             byte[] nonce = new byte[16];
             random.nextBytes(nonce);
             byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
@@ -375,7 +452,7 @@ public class Main {
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
             }
-            
+
             System.out.println(new String(contents));
             System.out.print(HEXF.formatHex(nonce));
         } catch (IOException e) {
@@ -386,7 +463,8 @@ public class Main {
     private static final void decrypt(String dir, String pass, byte[] nonce) {
         try {
             byte[] contents = Files.readAllBytes(Paths.get(dir));
-            /* debug */ System.out.println(contents.length);
+            /* debug */
+            System.out.println(contents.length);
             byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
 
             SHA3SHAKE sponge = new SHA3SHAKE();
@@ -399,7 +477,7 @@ public class Main {
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
             }
-            
+
             System.out.print(new String(contents));
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
@@ -425,10 +503,10 @@ public class Main {
                     // # arguments
                     // 0 = "hash"
                     // 1 = file directory
-                    
+
                     // default security level is 512
                     hash(args[1], 512);
-                } else if (args.length == 1){
+                } else if (args.length == 1) {
                     System.out.println("Error: Please provide path to the file to hash.");
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
@@ -442,7 +520,7 @@ public class Main {
                     // 2 = passkey
                     // 3 = file directory
                     // 4 = number of outputted bits
-                    
+
                     if (!args[1].matches("128|256")) {
                         System.out.println("Error: Invalid security level for Message Authentication Code. Implemented security levels include: 224, 256, 384, or 512.");
                     } else {
@@ -460,7 +538,7 @@ public class Main {
                     // 1 = passkey
                     // 2 = file directory
                     // 3 = number of outputted bits
-                    
+
                     // default security level is 256
                     try {
                         int length = Integer.parseInt(args[3]);
@@ -502,8 +580,9 @@ public class Main {
                 break;
             case "test":
                 //testSHA3();
-                System.out.println("Testing SHAKE:");
-                simpleSHAKETest();
+                testSHAKE();
+                //System.out.println("Testing SHAKE:");
+                //simpleSHAKETest();
                 break;
             default:
                 System.out.println("Error: First argument not a valid application feature.");
