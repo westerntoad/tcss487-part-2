@@ -34,6 +34,25 @@ public class Main {
         }
     }
 
+    private enum SHAKEVersion {
+        SHAKE128(128),
+        SHAKE256(256);
+
+        private final int bits;
+        private final String shortPath;
+        private final String longPath;
+        private final String montePath;
+        private final String variablePath;
+
+        SHAKEVersion(int bits) {
+            this.bits = bits;
+            shortPath = SHAKEVectorPaths.get(bits)[0];
+            longPath = SHAKEVectorPaths.get(bits)[1];
+            montePath = SHAKEVectorPaths.get(bits)[2];
+            variablePath = SHAKEVectorPaths.get(bits)[3];
+        }
+    }
+
     /**
      * Class to represent a Known Answer Test Vector.
      * Each vector has a list of message lengths, messages, and expected message digests.
@@ -74,17 +93,59 @@ public class Main {
             }
     );
 
+    private static final Map<Integer, String[]> SHAKEVectorPaths = Map.of(
+            128, new String[]{
+                    "tests/shakebytetestvectors/SHAKE128ShortMsg.rsp",
+                    "tests/shakebytetestvectors/SHAKE128LongMsg.rsp",
+                    "tests/shakebytetestvectors/SHAKE128Monte.rsp",
+                    "tests/shakebytetestvectors/SHAKE128VariableOut.rsp"
+            },
+            256, new String[] {
+                    "tests/shakebytetestvectors/SHAKE256ShortMsg.rsp",
+                    "tests/shakebytetestvectors/SHAKE256LongMsg.rsp",
+                    "tests/shakebytetestvectors/SHAKE256Monte.rsp",
+                    "tests/shakebytetestvectors/SHAKE256VariableOut.rsp"
+            }
+    );
+
+
     /**
      * Parse a Known Answer Test Vector from a file.
      * @param path                      the path to the test vector file.
      * @return                          the parsed test vector.
      * @throws FileNotFoundException    if the file is not found.
      */
-    private static KATVector parseKATVector(String path) throws FileNotFoundException {
+    private static KATVector parseSHA3KATVector(String path) throws FileNotFoundException {
 
         List<Integer> vectorLengths = new ArrayList<>();
         List<String> vectorMessages = new ArrayList<>();
         List<String> vectorExpected = new ArrayList<>();
+
+        Scanner scanner;
+        scanner = new Scanner(new File(path));
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine().trim();
+            if (line.startsWith("Len")) {
+                int len = Integer.parseInt(line.split(" = ")[1]);
+                vectorLengths.add(len);
+            } else if (line.startsWith("Msg")) {
+                String message = line.split(" = ")[1];
+                vectorMessages.add(message);
+            } else if (line.startsWith("MD")) {
+                String md = line.split(" = ")[1];
+                vectorExpected.add(md);
+            }
+        }
+        scanner.close();
+        return new KATVector(vectorLengths, vectorMessages, vectorExpected);
+    }
+
+    private static KATVector parseSHAKEKATVector(String path) throws FileNotFoundException {
+
+        List<Integer> vectorLengths = new ArrayList<>();
+        List<String> vectorMessages = new ArrayList<>();
+        List<String> vectorExpected = new ArrayList<>();
+        List<String> outputLengths = new ArrayList<>();
 
         Scanner scanner;
         scanner = new Scanner(new File(path));
@@ -138,8 +199,8 @@ public class Main {
      */
     private static void testSHA3() throws FileNotFoundException {
         for (SHAVersion version : SHAVersion.values()) {
-            KATVector parsedShort = parseKATVector(version.shortPath);
-            KATVector parsedLong = parseKATVector(version.longPath);
+            KATVector parsedShort = parseSHA3KATVector(version.shortPath);
+            KATVector parsedLong = parseSHA3KATVector(version.longPath);
             MonteVector parsedMonte = parseMonteVector(version.montePath);
 
             System.out.println("////////// SHA3-" + version.bits + " TESTS //////////");
