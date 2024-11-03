@@ -157,20 +157,23 @@ public class SHA3SHAKE {
      */
     public byte[] squeeze(int len) {
         byte[] out = new byte[len];
+        pad(false);
+        keccakf();
 
 
         outer:
         for (int numSqueezes = 0; numSqueezes <= len / rate_bytes; numSqueezes++) {
-            if (numSqueezes == len/rate_bytes) {
-                pad(false);
-                keccakf();
-            }
             int squeezedBytes = 0;
+
+            inner:
             for (long[] lane : state) {
                 for (long value : lane) {
                     byte[] temp = longToBytes(value);
 
                     for (int j = temp.length - 1; j >= 0; j--) {
+                        if (squeezedBytes >= rate_bytes)
+                            break inner;
+
                         int idx = squeezedBytes + numSqueezes * rate_bytes;
                         if (idx >= out.length)
                             break outer;
