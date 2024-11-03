@@ -6,10 +6,6 @@ public class SHA3SHAKE {
      * Number of left-rotations used by the Rho step.
      */
     private static final int[] RHO_TATIONS = {
-            // constants copied directly copied from mjosaarinen/tiny_sha3 .
-            //1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14, 27,
-            //41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44, 0
-
             // constants manually configured from NIST specs
             0, 1, 62, 28, 27,
             36, 44, 6, 55, 20,
@@ -76,10 +72,7 @@ public class SHA3SHAKE {
     /**
      * Unused default constructor used by the class.
      */
-    public SHA3SHAKE() {
-        // Not sure why this is needed?
-        // Seems like init is doing the job of the constructor.
-    }
+    public SHA3SHAKE() { }
 
     /**
      * Initialize the SHA-3/SHAKE sponge.
@@ -105,7 +98,7 @@ public class SHA3SHAKE {
     public void absorb(byte[] data, int pos, int len) {
 
         int j = 0;
-        for (int i = 0; i < len; i++) {
+        for (int i = pos; i < len; i++) {
             int x = (j / 8) % 5;
             int y = (j / 8) / 5;
             int z = (j % 8) * 8;
@@ -131,7 +124,7 @@ public class SHA3SHAKE {
      * @param len  byte count on the buffer (starting at index 0)
      */
     public void absorb(byte[] data, int len) {
-        absorb(data, len, 0);
+        absorb(data, 0, len);
     }
 
     /**
@@ -140,7 +133,7 @@ public class SHA3SHAKE {
      * @param data byte-oriented data buffer
      */
     public void absorb(byte[] data) {
-        absorb(data, data.length);
+        absorb(data, 0, data.length);
     }
 
     /**
@@ -163,7 +156,32 @@ public class SHA3SHAKE {
      * @return newly allocated buffer containing the desired hash value
      */
     public byte[] squeeze(int len) {
-        return squeeze(new byte[len], len);
+        byte[] out = new byte[len];
+        pad(false);
+        keccakf();
+
+        outer:
+        for (int numSqueezes = 0; numSqueezes <= len / 200; numSqueezes++) {
+            int i = 0;
+            for (long[] lane : state) {
+                for (long value : lane) {
+                    byte[] temp = longToBytes(value);
+
+                    for (int j = temp.length - 1; j >= 0 && i < out.length; j--) {
+                        int idx = i + numSqueezes * 200;
+                        if (idx > out.length)
+                            break outer;
+
+                        out[i + (numSqueezes * 200)] = temp[j];
+                        i++;
+                    }
+                }
+            }
+            
+            keccakf();
+        }
+
+        return out;
     }
 
     /**
@@ -173,18 +191,6 @@ public class SHA3SHAKE {
      * @return the val buffer containing the desired hash value
      */
     public byte[] digest(byte[] out) {
-        return null;
-    }
-
-    /**
-     * Squeeze a whole SHA-3 digest of hashed bytes from the sponge.
-     *
-     * @return the desired hash value on a newly allocated byte array
-     */
-    public byte[] digest() {
-
-        byte[] out = new byte[capacity / 16];
-
         pad(true);
         keccakf();
 
@@ -204,6 +210,15 @@ public class SHA3SHAKE {
     }
 
     /**
+     * Squeeze a whole SHA-3 digest of hashed bytes from the sponge.
+     *
+     * @return the desired hash value on a newly allocated byte array
+     */
+    public byte[] digest() {
+        return digest(new byte[capacity / 16]);
+    }
+
+    /**
      * Compute the streamlined SHA-3-<224,256,384,512> on input X.
      *
      * @param suffix desired output length in bits (one of 224, 256, 384, 512)
@@ -214,7 +229,7 @@ public class SHA3SHAKE {
     public static byte[] SHA3(int suffix, byte[] X, byte[] out) {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
-        sponge.absorb(X, 0, X.length);
+        sponge.absorb(X);
         return sponge.digest();
     }
 
@@ -228,12 +243,15 @@ public class SHA3SHAKE {
      * @return the out buffer containing the desired hash value.
      */
     public static byte[] SHAKE(int suffix, byte[] X, int L, byte[] out) {
-        return new byte[0];
+        SHA3SHAKE sponge = new SHA3SHAKE();
+        sponge.init(suffix);
+        sponge.absorb(X);
+
+        return sponge.squeeze(L / 8);
     }
 
     private void keccakf() {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
-            //for (int r = 0; r < 1; r++) {
             /* debug */
 //            System.out.printf("\nRound #%d", r);
 
@@ -242,7 +260,6 @@ public class SHA3SHAKE {
             // conceptually, pillarXors is a buffer of sheets
             long[] pillarXors = new long[5];
             for (int i = 0; i < 5; i++) {
-                //pillarXors[i] = state[0][i] ^ state[1][i] ^ state[2][i] ^ state[3][i] ^ state[4][i];
                 for (int j = 0; j < 5; j++) {
                     pillarXors[i] ^= state[j][i];
                 }
