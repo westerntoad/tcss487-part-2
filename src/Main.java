@@ -419,88 +419,62 @@ public class Main {
 
         }
 
-    Long end = System.nanoTime();
+        Long end = System.nanoTime();
 
         if(passed) {
-        double timeMillis = (end - start) / 1E6;
-        double timeSeconds = (end - start) / 1E9;
-        System.out.println("SHAKE-" + suffix + " Monte test passed in " + timeMillis
-                + " milliseconds (~" + (int) (1_000_000 / timeSeconds) + " tests per second).");
+            double timeMillis = (end - start) / 1E6;
+            double timeSeconds = (end - start) / 1E9;
+            System.out.println("SHAKE-" + suffix + " Monte test passed in " + timeMillis
+                    + " milliseconds (~" + (int) (1_000_000 / timeSeconds) + " tests per second).");
+        }
     }
-}
 
-// private static List<TestResult> testFromFileSHA3(File file) {
-//     List<TestResult> results = new ArrayList<TestResult>();
-
-//     try {
-//         Scanner scanner = new Scanner(file);
-//         String line = scanner.nextLine();
-
-//         while (!line.isEmpty() && line.charAt(0) != '[') {
-//             line = scanner.nextLine();
-//         }
-//         line = scanner.nextLine();
-
-//         int suffix = Integer.parseInt(line.substring(5, 8));
-
-//         scanner.nextLine();
-
-//         // loop
-//         while (scanner.hasNextLine()) {
-//             int messageLength = Integer.parseInt(scanner.nextLine().substring(6));
-//             byte[] message = HEXF.parseHex(scanner.nextLine().substring(6));
-//             byte[] result = SHA3SHAKE.SHA3(suffix, message, null);
-//             byte[] expected = HEXF.parseHex(scanner.nextLine().substring(5));
-//             String name = "SHA3-" + suffix + " L=" + messageLength;
-//             results.add(new TestResult(name, result, expected));
-
-//             scanner.nextLine();
-//         }
-//     } catch (FileNotFoundException e) {
-//         System.err.println("Could not find file to test.");
-//         e.printStackTrace();
-//     }
-
-//     return results;
-// }
-
-private static void simpleSHAKETest() {
-    byte[] message = HEXF.parseHex("8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4");
-    byte[] expected = HEXF.parseHex("2e975f6a8a14f0704d51b13667d8195c219f71e6345696c49fa4b9d08e9225d3d39393425152c97e71dd24601c11abcfa0f12f53c680bd3ae757b8134a9c10d429615869217fdd5885c4db174985703a6d6de94a667eac3023443a8337ae1bc601b76d7d38ec3c34463105f0d3949d78e562a039e4469548b609395de5a4fd43c46ca9fd6ee29ada5efc07d84d553249450dab4a49c483ded250c9338f85cd937ae66bb436f3b4026e859fda1ca571432f3bfc09e7c03ca4d183b741111ca0483d0edabc03feb23b17ee48e844ba2408d9dcfd0139d2e8c7310125aee801c61ab7900d1efc47c078281766f361c5e6111346235e1dc38325666c");
-    byte[] actual = SHA3SHAKE.SHAKE(256, message, 2000, null);
-    String name = "SHAKE-" + 256 + " L=" + 0;
-    TestResult tr = new TestResult(name, actual, expected);
-    System.out.println(tr);
-
-}
-
-private static final void hash(String dir, int suffix) {
-    try {
-        byte[] contents = Files.readAllBytes(Paths.get(dir));
-        byte[] output = SHA3SHAKE.SHA3(suffix, contents, null);
-        System.out.println(HEXF.formatHex(output));
-    } catch (IOException e) {
-        System.out.println("Error: Invalid path to file. Please try again.");
+    public static long bytesToInt(final byte[] b) {
+        int result = 0;
+        for (int i = 0; i < Short.BYTES; i++) {
+            result <<= Byte.SIZE;
+            result |= (b[i] & 0xFF);
+        }
+        return result;
     }
-}
 
-private static final void macFromFile(String dir, String pass, int suffix, int length) {
-    if (length <= 0) {
-        System.out.println("Error: MAC tag lengths must be positive.");
-    }
-    try {
-        byte[] contents = Files.readAllBytes(Paths.get(dir));
-        SHA3SHAKE sponge = new SHA3SHAKE();
-        sponge.init(suffix);
-        sponge.absorb(pass.getBytes());
-        sponge.absorb(contents);
-        byte[] mac = sponge.squeeze(length);
+    private static void simpleSHAKETest() {
+        byte[] message = HEXF.parseHex("8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4");
+        byte[] expected = HEXF.parseHex("2e975f6a8a14f0704d51b13667d8195c219f71e6345696c49fa4b9d08e9225d3d39393425152c97e71dd24601c11abcfa0f12f53c680bd3ae757b8134a9c10d429615869217fdd5885c4db174985703a6d6de94a667eac3023443a8337ae1bc601b76d7d38ec3c34463105f0d3949d78e562a039e4469548b609395de5a4fd43c46ca9fd6ee29ada5efc07d84d553249450dab4a49c483ded250c9338f85cd937ae66bb436f3b4026e859fda1ca571432f3bfc09e7c03ca4d183b741111ca0483d0edabc03feb23b17ee48e844ba2408d9dcfd0139d2e8c7310125aee801c61ab7900d1efc47c078281766f361c5e6111346235e1dc38325666c");
+        byte[] actual = SHA3SHAKE.SHAKE(256, message, 2000, null);
+        String name = "SHAKE-" + 256 + " L=" + 0;
+        TestResult tr = new TestResult(name, actual, expected);
+        System.out.println(tr);
 
-        System.out.println(HEXF.formatHex(mac));
-    } catch (IOException e) {
-        System.out.println("Error: Invalid path to file. Please try again.");
     }
-}
+
+    private static final void hash(String dir, int suffix) {
+        try {
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            byte[] output = SHA3SHAKE.SHA3(suffix, contents, null);
+            System.out.println(HEXF.formatHex(output));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
+    private static final void macFromFile(String dir, String pass, int suffix, int length) {
+        if (length <= 0) {
+            System.out.println("Error: MAC tag lengths must be positive.");
+        }
+        try {
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            SHA3SHAKE sponge = new SHA3SHAKE();
+            sponge.init(suffix);
+            sponge.absorb(pass.getBytes());
+            sponge.absorb(contents);
+            byte[] mac = sponge.squeeze(length);
+
+            System.out.println(HEXF.formatHex(mac));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
 
     private static final void encrypt(String dir, String pass, String outputDir) {
         String sanitizedOutputDir = outputDir;
@@ -540,9 +514,9 @@ private static final void macFromFile(String dir, String pass, int suffix, int l
             }
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
-               //fos.write(contents);
-               //fos.write(mac);
-               fos.write(out);
+                //fos.write(contents);
+                //fos.write(mac);
+                fos.write(out);
             }
             // System.out.println(new String(contents));
             System.out.println(HEXF.formatHex(nonce));
@@ -550,7 +524,6 @@ private static final void macFromFile(String dir, String pass, int suffix, int l
             System.out.println("Error: Invalid path to file. Please try again.");
         }
     }
-}
 
     private static final void decrypt(String dir, String pass, byte[] nonce, String outputDir) {
         String sanitizedOutputDir = outputDir;
@@ -562,73 +535,89 @@ private static final void macFromFile(String dir, String pass, int suffix, int l
             ///* debug */ System.out.println(contents.length);
             byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
 
-        SHA3SHAKE sponge = new SHA3SHAKE();
-        sponge.init(128);
-        sponge.absorb(nonce);
-        sponge.absorb(hashedKey);
-        byte[] cipher = sponge.squeeze(contents.length);
-        ///* debug */ System.out.println(HEXF.formatHex(cipher));
+            SHA3SHAKE sponge = new SHA3SHAKE();
+            sponge.init(128);
+            sponge.absorb(nonce);
+            sponge.absorb(hashedKey);
+            byte[] cipher = sponge.squeeze(contents.length);
+            ///* debug */ System.out.println(HEXF.formatHex(cipher));
 
-        for (int i = 0; i < contents.length; i++) {
-            contents[i] ^= cipher[i];
-        }
+            for (int i = 0; i < contents.length; i++) {
+                contents[i] ^= cipher[i];
+            }
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
-               fos.write(contents);
+                fos.write(contents);
             }
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
         }
-        return result;
     }
 
-public static void main(String[] args) throws FileNotFoundException {
-    switch (args[0].toLowerCase()) {
-        case "hash":
-            if (args.length == 3) {
-                // # arguments
-                // 0 = "hash"
-                // 1 = security level
-                // 2 = file directory
+    public static void main(String[] args) throws FileNotFoundException {
+        switch (args[0].toLowerCase()) {
+            case "hash":
+                if (args.length == 3) {
+                    // # arguments
+                    // 0 = "hash"
+                    // 1 = security level
+                    // 2 = file directory
 
-                System.out.println(args[1]);
-                if (!args[1].matches("224|256|384|512")) {
-                    System.out.println("Error: Invalid security level for hashing function. Implemented security levels include: 224, 256, 384, or 512.");
+                    System.out.println(args[1]);
+                    if (!args[1].matches("224|256|384|512")) {
+                        System.out.println("Error: Invalid security level for hashing function. Implemented security levels include: 224, 256, 384, or 512.");
+                    } else {
+                        hash(args[2], Integer.valueOf(args[1]));
+                    }
+                } else if (args.length == 2) {
+                    // # arguments
+                    // 0 = "hash"
+                    // 1 = file directory
+
+                    // default security level is 512
+                    hash(args[1], 512);
+                } else if (args.length == 1) {
+                    System.out.println("Error: Please provide path to the file to hash.");
                 } else {
-                    hash(args[2], Integer.valueOf(args[1]));
+                    System.out.println("Error: Invalid number of arguments.");
                 }
-            } else if (args.length == 2) {
-                // # arguments
-                // 0 = "hash"
-                // 1 = file directory
+                break;
+            case "mac":
+                if (args.length == 5) {
+                    // # arguments
+                    // 0 = "mac"
+                    // 1 = security level
+                    // 2 = passkey
+                    // 3 = file directory
+                    // 4 = number of outputted bits
 
-                // default security level is 512
-                hash(args[1], 512);
-            } else if (args.length == 1) {
-                System.out.println("Error: Please provide path to the file to hash.");
-            } else {
-                System.out.println("Error: Invalid number of arguments.");
-            }
-            break;
-        case "mac":
-            if (args.length == 5) {
-                // # arguments
-                // 0 = "mac"
-                // 1 = security level
-                // 2 = passkey
-                // 3 = file directory
-                // 4 = number of outputted bits
+                    if (!args[1].matches("128|256")) {
+                        System.out.println("Error: Invalid security level for Message Authentication Code. Implemented security levels include: 224, 256, 384, or 512.");
+                    } else {
+                        try {
+                            int length = Integer.parseInt(args[4]);
+                            int suffix = Integer.parseInt(args[1]);
+                            macFromFile(args[3], args[2], suffix, length);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Error parsing MAC output length.");
+                        }
+                    }
+                } else if (args.length == 4) {
+                    // # arguments
+                    // 0 = "mac"
+                    // 1 = passkey
+                    // 2 = file directory
+                    // 3 = number of outputted bits
 
-                if (!args[1].matches("128|256")) {
-                    System.out.println("Error: Invalid security level for Message Authentication Code. Implemented security levels include: 224, 256, 384, or 512.");
-                } else {
+                    // default security level is 256
                     try {
-                        int length = Integer.parseInt(args[4]);
-                        int suffix = Integer.parseInt(args[1]);
-                        macFromFile(args[3], args[2], suffix, length);
+                        int length = Integer.parseInt(args[3]);
+                        macFromFile(args[2], args[1], 256, length);
                     } catch (NumberFormatException e) {
                         System.out.println("Error parsing MAC output length.");
                     }
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
             case "encrypt":
@@ -645,7 +634,7 @@ public static void main(String[] args) throws FileNotFoundException {
                     // 0 = "encrypt"
                     // 1 = passphrase
                     // 2 = input file directory
-                    
+
                     encrypt(args[2], args[1], null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
@@ -667,14 +656,14 @@ public static void main(String[] args) throws FileNotFoundException {
                     // 1 = passphrase
                     // 2 = random nonce from encryption
                     // 3 = input file directory
-                    
+
                     decrypt(args[3], args[1], HEXF.parseHex(args[2]), null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
             case "test":
-                //testSHA3();
+                testSHA3();
                 testSHAKE();
                 //System.out.println("Testing SHAKE:");
                 //simpleSHAKETest();
@@ -684,6 +673,5 @@ public static void main(String[] args) throws FileNotFoundException {
                 break;
         }
     }
-}
 
 }
