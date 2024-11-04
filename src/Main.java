@@ -549,12 +549,10 @@ public class Main {
             macSponge.absorb(hashedKey);
             macSponge.absorb(contents);
             byte[] mac = macSponge.digest();
-<<<<<<< HEAD
+
             if (!Arrays.equals(expectedMAC, mac)) {
                 System.out.println("Message Authentication Codes do not match. Expected incorrect password - please try again.");
             }
-=======
->>>>>>> e0dc7f690e9240d1f638440de9032f638aa640b2
 
             SHA3SHAKE sponge = new SHA3SHAKE();
             sponge.init(128);
@@ -566,13 +564,6 @@ public class Main {
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
             }
-
-<<<<<<< HEAD
-=======
-            if (!Arrays.equals(expectedMAC, mac)) {
-                System.out.println("Message Authentication Codes do not match. Expected incorrect password - please try again.");
-            }
->>>>>>> e0dc7f690e9240d1f638440de9032f638aa640b2
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
                 fos.write(contents);
