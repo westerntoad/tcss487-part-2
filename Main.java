@@ -502,15 +502,65 @@ private static final void macFromFile(String dir, String pass, int suffix, int l
     }
 }
 
-private static final void encrypt(String dir, String pass) {
-    try {
-        SecureRandom random = new SecureRandom();
-        byte[] contents = Files.readAllBytes(Paths.get(dir));
-        /* debug */
-        System.out.println(contents.length);
-        byte[] nonce = new byte[16];
-        random.nextBytes(nonce);
-        byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
+    private static final void encrypt(String dir, String pass, String outputDir) {
+        String sanitizedOutputDir = outputDir;
+        if (outputDir == null) {
+            sanitizedOutputDir = dir + ".enc";
+        }
+        try {
+            SecureRandom random = new SecureRandom();
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            ///* debug */ System.out.println(contents.length);
+            byte[] nonce = new byte[16];
+            random.nextBytes(nonce);
+            byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
+
+            SHA3SHAKE sponge = new SHA3SHAKE();
+            sponge.init(128);
+            sponge.absorb(nonce);
+            sponge.absorb(hashedKey);
+            byte[] cipher = sponge.squeeze(contents.length);
+            ///* debug */ System.out.println(HEXF.formatHex(cipher));
+            byte[] out = new byte[contents.length + 32];
+
+            for (int i = 0; i < contents.length; i++) {
+                contents[i] ^= cipher[i];
+                out[i] = contents[i];
+            }
+
+            SHA3SHAKE macSponge = new SHA3SHAKE();
+            macSponge.init(256);
+            macSponge.absorb(nonce);
+            macSponge.absorb(hashedKey);
+            macSponge.absorb(contents);
+            byte[] mac = macSponge.digest();
+
+            for (int i = 0; i < 32; i++) {
+                out[contents.length + i] = mac[i];
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
+               //fos.write(contents);
+               //fos.write(mac);
+               fos.write(out);
+            }
+            // System.out.println(new String(contents));
+            System.out.println(HEXF.formatHex(nonce));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+}
+
+    private static final void decrypt(String dir, String pass, byte[] nonce, String outputDir) {
+        String sanitizedOutputDir = outputDir;
+        if (outputDir == null) {
+            sanitizedOutputDir = dir.replaceAll(".enc", "");
+        }
+        try {
+            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            ///* debug */ System.out.println(contents.length);
+            byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
 
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(128);
@@ -523,42 +573,11 @@ private static final void encrypt(String dir, String pass) {
             contents[i] ^= cipher[i];
         }
 
-        System.out.println(new String(contents));
-        System.out.print(HEXF.formatHex(nonce));
-    } catch (IOException e) {
-        System.out.println("Error: Invalid path to file. Please try again.");
-    }
-}
-
-private static final void decrypt(String dir, String pass, byte[] nonce) {
-    try {
-        byte[] contents = Files.readAllBytes(Paths.get(dir));
-        /* debug */
-        System.out.println(contents.length);
-        byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
-
-        SHA3SHAKE sponge = new SHA3SHAKE();
-        sponge.init(128);
-        sponge.absorb(nonce);
-        sponge.absorb(hashedKey);
-        byte[] cipher = sponge.squeeze(contents.length);
-        ///* debug */ System.out.println(HEXF.formatHex(cipher));
-
-        for (int i = 0; i < contents.length; i++) {
-            contents[i] ^= cipher[i];
-        }
-
-        System.out.print(new String(contents));
-    } catch (IOException e) {
-        System.out.println("Error: Invalid path to file. Please try again.");
-    }
-}
-
-    public static long bytesToInt(final byte[] b) {
-        int result = 0;
-        for (int i = 0; i < Short.BYTES; i++) {
-            result <<= Byte.SIZE;
-            result |= (b[i] & 0xFF);
+            try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
+               fos.write(contents);
+            }
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
         }
         return result;
     }
@@ -611,61 +630,59 @@ public static void main(String[] args) throws FileNotFoundException {
                         System.out.println("Error parsing MAC output length.");
                     }
                 }
-            } else if (args.length == 4) {
-                // # arguments
-                // 0 = "mac"
-                // 1 = passkey
-                // 2 = file directory
-                // 3 = number of outputted bits
+                break;
+            case "encrypt":
+                if (args.length == 4) {
+                    // # arguments
+                    // 0 = "encrypt"
+                    // 1 = passphrase
+                    // 2 = input file directory
+                    // 3 = output file directory
 
-                // default security level is 256
-                try {
-                    int length = Integer.parseInt(args[3]);
-                    macFromFile(args[2], args[1], 256, length);
-                } catch (NumberFormatException e) {
-                    System.out.println("Error parsing MAC output length.");
+                    encrypt(args[2], args[1], args[3]);
+                } else if (args.length == 3) {
+                    // # arguments
+                    // 0 = "encrypt"
+                    // 1 = passphrase
+                    // 2 = input file directory
+                    
+                    encrypt(args[2], args[1], null);
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
                 }
-            } else {
-                System.out.println("Error: Invalid number of arguments.");
-            }
-            break;
-        case "encrypt":
-            if (args.length == 3) {
-                // # arguments
-                // 0 = "encrypt"
-                // 1 = passphrase
-                // 2 = file directory
+                break;
+            case "decrypt":
+                if (args.length == 5) {
+                    // # arguments
+                    // 0 = "decrypt"
+                    // 1 = passphrase
+                    // 2 = random nonce from encryption
+                    // 3 = input file directory
+                    // 4 = output file directory
 
-                encrypt(args[2], args[1]);
-            } else {
-                System.out.println("Error: Invalid number of arguments.");
-            }
-            // DEBUG
-            // cipher = 38f2f5c0d9c5
-            // nonce = a7bcf3afb8a3fca71de7ab251c018da1
-            break;
-        case "decrypt":
-            if (args.length == 4) {
-                // # arguments
-                // 0 = "decrypt"
-                // 1 = passphrase
-                // 2 = file directory
-                // 3 = random nonce from encryption
-
-                decrypt(args[2], args[1], HEXF.parseHex(args[3]));
-            } else {
-                System.out.println("Error: Invalid number of arguments.");
-            }
-            break;
-        case "test":
-            testSHA3();
-            testSHAKE();
-            //System.out.println("Testing SHAKE:");
-            //simpleSHAKETest();
-            break;
-        default:
-            System.out.println("Error: First argument not a valid application feature.");
-            break;
+                    decrypt(args[3], args[1], HEXF.parseHex(args[2]), args[4]);
+                } else if (args.length == 4) {
+                    // # arguments
+                    // 0 = "decrypt"
+                    // 1 = passphrase
+                    // 2 = random nonce from encryption
+                    // 3 = input file directory
+                    
+                    decrypt(args[3], args[1], HEXF.parseHex(args[2]), null);
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
+                }
+                break;
+            case "test":
+                //testSHA3();
+                testSHAKE();
+                //System.out.println("Testing SHAKE:");
+                //simpleSHAKETest();
+                break;
+            default:
+                System.out.println("Error: First argument not a valid application feature.");
+                break;
+        }
     }
 }
 
