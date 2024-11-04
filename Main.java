@@ -658,7 +658,7 @@ public static void main(String[] args) throws FileNotFoundException {
             }
             break;
         case "test":
-            //testSHA3();
+            testSHA3();
             testSHAKE();
             //System.out.println("Testing SHAKE:");
             //simpleSHAKETest();

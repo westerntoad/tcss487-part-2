@@ -1,4 +1,3 @@
-import java.util.Arrays;
 
 public class SHA3SHAKE {
 
@@ -40,22 +39,19 @@ public class SHA3SHAKE {
      */
     private static final int STATE_SIZE = 1600;
 
-
     /**
      * Capacity, or c, of the sponge construction. Dependent on the suffix.
      */
     private int capacity;
 
     /**
-     * Rate, or r, of the sponge construction. Dependent on the suffix.
-     */
-    private int rate_bits;
-
-    /**
      * Rate of the sponge construction expressed in bytes.
      */
     private int rate_bytes;
 
+    /**
+     * Position of the sponge expressed in bits.
+     */
     private int pos;
 
     /**
@@ -82,7 +78,7 @@ public class SHA3SHAKE {
      */
     public void init(int suffix) {
         capacity = 2 * suffix;
-        rate_bits = STATE_SIZE - capacity;
+        int rate_bits = STATE_SIZE - capacity;
         rate_bytes = rate_bits / 8;
         state = new long[5][5];
         pos = 0;
@@ -106,9 +102,6 @@ public class SHA3SHAKE {
             j++;
 
             if (j == rate_bytes) {
-//                System.out.println("Data to be absorbed:");
-//                printState();
-//                printLanes();
                 keccakf();
                 j = 0;
             }
@@ -133,7 +126,7 @@ public class SHA3SHAKE {
      * @param data byte-oriented data buffer
      */
     public void absorb(byte[] data) {
-        absorb(data, 0, data.length);
+        absorb(data, data.length);
     }
 
     /**
@@ -145,21 +138,8 @@ public class SHA3SHAKE {
      * @return the val buffer containing the desired hash value
      */
     public byte[] squeeze(byte[] out, int len) {
-        return new byte[len];
-    }
-
-    /**
-     * Squeeze a chunk of hashed bytes from the sponge.
-     * Call this method as many times as needed to extract the total desired number of bytes.
-     *
-     * @param len desired number of squeezed bytes
-     * @return newly allocated buffer containing the desired hash value
-     */
-    public byte[] squeeze(int len) {
-        byte[] out = new byte[len];
         pad(false);
         keccakf();
-
 
         outer:
         for (int numSqueezes = 0; numSqueezes <= len / rate_bytes; numSqueezes++) {
@@ -183,12 +163,21 @@ public class SHA3SHAKE {
                     }
                 }
             }
-
-
             keccakf();
         }
 
         return out;
+    }
+
+    /**
+     * Squeeze a chunk of hashed bytes from the sponge.
+     * Call this method as many times as needed to extract the total desired number of bytes.
+     *
+     * @param len desired number of squeezed bytes
+     * @return newly allocated buffer containing the desired hash value
+     */
+    public byte[] squeeze(int len) {
+        return squeeze(new byte[len], len);
     }
 
     /**
@@ -234,10 +223,15 @@ public class SHA3SHAKE {
      * @return the out buffer containing the desired hash value.
      */
     public static byte[] SHA3(int suffix, byte[] X, byte[] out) {
+
+        byte[] output = out == null ? new byte[suffix / 8] : out;
+        checkValidArgs(true, suffix, output.length);
+
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
         sponge.absorb(X);
-        return sponge.digest();
+        out = sponge.digest(output);
+        return out;
     }
 
     /**
@@ -250,16 +244,22 @@ public class SHA3SHAKE {
      * @return the out buffer containing the desired hash value.
      */
     public static byte[] SHAKE(int suffix, byte[] X, int L, byte[] out) {
+
+        byte[] output = out == null ? new byte[suffix / 8] : out;
+        checkValidArgs(false, suffix, output.length);
+
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
         sponge.absorb(X);
-        return sponge.squeeze(L / 8);
+        out = sponge.squeeze(L / 8);
+        return out;
     }
 
+    /**
+     * Execute the Keccak-f permutation on the internal state.
+     */
     private void keccakf() {
         for (int r = 0; r < KECCAK_ROUNDS; r++) {
-            /* debug */
-//            System.out.printf("\nRound #%d", r);
 
             // -- THETA --
             // hold the xor of all pillars in a buffer
@@ -278,10 +278,6 @@ public class SHA3SHAKE {
                     state[j][i] ^= sheetIdx;
                 }
             }
-//            /* debug */
-//            System.out.println("\nAfter Theta");
-//            /* debug */
-//            printState();
 
             // -- RHO --
             for (int i = 0; i < 5; i++) {
@@ -289,10 +285,6 @@ public class SHA3SHAKE {
                     state[i][j] = rotL(state[i][j], RHO_TATIONS[i * 5 + j]);
                 }
             }
-//            /* debug */
-//            System.out.println("\nAfter Rho");
-//            /* debug */
-//            printState();
 
             // -- PI --
             int x = 0, y = 1, oldX, oldY;
@@ -308,11 +300,6 @@ public class SHA3SHAKE {
             }
             state[y][x] = temp;
 
-//            /* debug */
-//            System.out.println("\nAfter Pi");
-//            /* debug */
-//            printState();
-
             // -- CHI --
             long[] buffer = new long[5];
             for (int i = 0; i < 5; i++) {
@@ -323,62 +310,29 @@ public class SHA3SHAKE {
                     state[i][j] ^= (~buffer[(j + 1) % 5]) & buffer[(j + 2) % 5];
                 }
             }
-//            /* debug */
-//            System.out.println("\nAfter Chi");
-//            /* debug */
-//            printState();
 
             // -- IOTA --
             state[0][0] ^= ROUND_CONSTANTS[r];
-//            /* debug */
-//            System.out.println("\nAfter Iota");
-//            /* debug */
-//            printState();
         }
     }
 
-    /**
-     * Prints internal state for debugging purposes.
-     */
-    private void printState() {
-        //byte[][][] bytes = new byte[5][5][8];
-        //byte[][][] bytes = new byte[5][5][8];
-        //ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+    private static void checkValidArgs(boolean SHA3, int suffix, int outLength) {
 
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 5; j++) {
-                //buffer.putLong(state[i][j]);
-                //bytes[i][j] = buffer.array();
-                byte[] bytes = longToBytes(state[i][j]);
-                for (int k = 0; k < 8; k++) {
-                    System.out.printf("%02X ", bytes[7 - k]);
-                }
-                if ((i + j) % 2 == 1)
-                    System.out.println();
+        if (SHA3) {
+            if (suffix != 224 && suffix != 256 && suffix != 384 && suffix != 512) {
+                throw new IllegalArgumentException("invalid suffix value");
+            }
+        } else {
+            if (suffix != 128 && suffix != 256) {
+                throw new IllegalArgumentException("invalid suffix value");
             }
         }
-        System.out.println();
-    }
 
-    /**
-     * Prints internal state in the form of lanes for debugging purposes.
-     */
-    private void printLanes() {
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 5; j++) {
-                System.out.printf("[%d, %d] = %016x%n", j, i, state[i][j]);
-            }
+        if (outLength != suffix / 8) {
+            throw new IllegalArgumentException("invalid output buffer length");
         }
-    }
 
-    private static void printHex(byte[] data) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : data) {
-            hexString.append(String.format("%02X ", b));
-        }
-        System.out.println(hexString);
     }
-
 
     /* ~~~ HELPER BITWISE METHODS ~~~ */
 
@@ -406,17 +360,6 @@ public class SHA3SHAKE {
         return result;
     }
 
-    // taken from:
-    // https://stackoverflow.com/a/29132118
-    public static long bytesToLong(final byte[] b) {
-        long result = 0;
-        for (int i = 0; i < Long.BYTES; i++) {
-            result <<= Byte.SIZE;
-            result |= (b[i] & 0xFF);
-        }
-        return result;
-    }
-
     private void pad(boolean isSHA) {
 
         long padStart = (isSHA) ? 0x06L : 0x1FL;
@@ -426,8 +369,7 @@ public class SHA3SHAKE {
         int y = (pos / 8) / 5;
         int z = (pos % 8) * 8;
 
-
-        if (state[y][x] == 0L && pos == 1) state[y][x] ^= padStart; // empty message edge case
+        if (state[y][x] == 0L && pos == 1) state[y][x] ^= padStart;
         else state[y][x] ^= padStart << z;
 
         /* coordinates for end of padding */
@@ -436,9 +378,5 @@ public class SHA3SHAKE {
         int rateZ = ((rate_bytes - 1) % 8) * 8;
 
         state[rateY][rateX] ^= 0x80L << rateZ;
-
-//        System.out.println("\nAfter Pad:");
-//        printState();
-//        printLanes();
     }
 }
