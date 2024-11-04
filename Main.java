@@ -451,13 +451,28 @@ public class Main {
             sponge.absorb(hashedKey);
             byte[] cipher = sponge.squeeze(contents.length);
             ///* debug */ System.out.println(HEXF.formatHex(cipher));
+            byte[] out = new byte[contents.length + 32];
 
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
+                out[i] = contents[i];
+            }
+
+            SHA3SHAKE macSponge = new SHA3SHAKE();
+            macSponge.init(256);
+            macSponge.absorb(nonce);
+            macSponge.absorb(hashedKey);
+            macSponge.absorb(contents);
+            byte[] mac = macSponge.digest();
+
+            for (int i = 0; i < 32; i++) {
+                out[contents.length + i] = mac[i];
             }
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
-               fos.write(contents);
+               //fos.write(contents);
+               //fos.write(mac);
+               fos.write(out);
             }
             // System.out.println(new String(contents));
             System.out.println(HEXF.formatHex(nonce));
