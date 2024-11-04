@@ -176,8 +176,7 @@ public class Main {
             } else if (line.startsWith("Outputlen")) {
                 int length = Integer.parseInt(line.split(" = ")[1]);
                 outputBits.add(length);
-            }
-            else if (line.startsWith("[Input")) {
+            } else if (line.startsWith("[Input")) {
                 inputLength = Integer.parseInt(line.split(" = ")[1].replace("]", ""));
             }
         }
@@ -203,7 +202,7 @@ public class Main {
      * @return the parsed test vector.
      * @throws FileNotFoundException if the file is not found.
      */
-    private static SHA3MonteVector parseMonteVector(String path) throws FileNotFoundException {
+    private static SHA3MonteVector parseSHA3MonteVector(String path) throws FileNotFoundException {
 
         List<String> seed = new ArrayList<>();
         List<String> messageDigests = new ArrayList<>();
@@ -223,6 +222,29 @@ public class Main {
         return new SHA3MonteVector(seed.get(0), messageDigests);
     }
 
+    private static SHAKEMonteVector parseSHAKEMonteVector(String path) throws FileNotFoundException {
+
+        String seed = "";
+        List<String> messageDigests = new ArrayList<>();
+        List<Integer> outputLengths = new ArrayList<>();
+
+        Scanner scanner;
+        scanner = new Scanner(new File(path));
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine().trim();
+            if (line.startsWith("Msg")) {
+                seed = (line.split(" = ")[1]);
+            } else if (line.startsWith("Outputlen")) {
+                outputLengths.add(Integer.parseInt(line.split(" = ")[1]));
+            } else if (line.startsWith("Output ")) {
+                messageDigests.add(line.split(" = ")[1]);
+            }
+        }
+        scanner.close();
+
+        return new SHAKEMonteVector(seed, messageDigests, outputLengths);
+    }
+
 
     /**
      * Run the SHA3 Known Answer Tests and Monte Carlo Tests.
@@ -233,7 +255,7 @@ public class Main {
         for (SHAVersion version : SHAVersion.values()) {
             SHA3KATVector parsedShort = parseSHA3KATVector(version.shortPath);
             SHA3KATVector parsedLong = parseSHA3KATVector(version.longPath);
-            SHA3MonteVector parsedMonte = parseMonteVector(version.montePath);
+            SHA3MonteVector parsedMonte = parseSHA3MonteVector(version.montePath);
 
             System.out.println("////////// SHA3-" + version.bits + " TESTS //////////");
             runSHA3KAT(version.bits, parsedShort);
@@ -249,13 +271,13 @@ public class Main {
             SHAKEKATVector parsedShort = parseSHAKEKATVector(version.shortPath);
             SHAKEKATVector parsedLong = parseSHAKEKATVector(version.longPath);
             SHAKEKATVector parsedVariable = parseSHAKEKATVector(version.variablePath);
-            SHAKEKATVector parsedMonte = parseSHAKEKATVector(version.montePath);
+            SHAKEMonteVector parsedMonte = parseSHAKEMonteVector(version.montePath);
 
             System.out.println("////////// SHAKE-" + version.bits + " TESTS //////////");
             runSHAKEKAT(version.bits, parsedShort);
             runSHAKEKAT(version.bits, parsedLong);
             runSHAKEKAT(version.bits, parsedVariable);
-            //runSHAKEMonte(version.bits, parsedMonte);
+            runSHAKEMonte(version.bits, parsedMonte);
             System.out.println();
         }
     }
@@ -358,41 +380,63 @@ public class Main {
         }
     }
 
+    private static void runSHAKEMonte(int suffix, SHAKEMonteVector vector) {
 
-    // private static List<TestResult> testFromFileSHA3(File file) {
-    //     List<TestResult> results = new ArrayList<TestResult>();
 
-    //     try {
-    //         Scanner scanner = new Scanner(file);
-    //         String line = scanner.nextLine();
+        List<String> digests = vector.messageDigests;
+        List<Integer> lengths = vector.outputLengths;
+        boolean passed = true;
 
-    //         while (!line.isEmpty() && line.charAt(0) != '[') {
-    //             line = scanner.nextLine();
-    //         }
-    //         line = scanner.nextLine();
+        int minOutLen = suffix == 128 ? 128 : 16;
+        int maxOutLen = suffix == 128 ? 1120 : 2000;
+        int outputLen = Math.floorDiv(maxOutLen, 8) * 8;
+        byte[] output = HEXF.parseHex(vector.seed);
 
-    //         int suffix = Integer.parseInt(line.substring(5, 8));
+        Long start = System.nanoTime();
 
-    //         scanner.nextLine();
+        for (int i = 0; i < 100; i++) {
+            for (int j = 0; j < 1000; j++) {
+                byte[] message = Arrays.copyOfRange(output, 0, 128 / 8);
+                output = SHA3SHAKE.SHAKE(suffix, message, outputLen, null);
 
-    //         // loop
-    //         while (scanner.hasNextLine()) {
-    //             int messageLength = Integer.parseInt(scanner.nextLine().substring(6));
-    //             byte[] message = HEXF.parseHex(scanner.nextLine().substring(6));
-    //             byte[] result = SHA3SHAKE.SHA3(suffix, message, null);
-    //             byte[] expected = HEXF.parseHex(scanner.nextLine().substring(5));
-    //             String name = "SHA3-" + suffix + " L=" + messageLength;
-    //             results.add(new TestResult(name, result, expected));
+                byte[] rightmost16 = Arrays.copyOfRange(output, output.length - 2, output.length);
+                int range = (maxOutLen / 8) - (minOutLen / 8) + 1;
+                outputLen = (int) ((minOutLen / 8) + (bytesToInt(rightmost16) % range)) * 8;
+            }
 
-    //             scanner.nextLine();
-    //         }
-    //     } catch (FileNotFoundException e) {
-    //         System.err.println("Could not find file to test.");
-    //         e.printStackTrace();
-    //     }
+            byte[] expected = HEXF.parseHex(digests.get(i));
 
-    //     return results;
-    // }
+            String name = "SHAKE-" + suffix + " L=" + lengths.get(i);
+            TestResult tr = new TestResult(name, output, expected);
+
+            if (!tr.passed()) {
+                System.out.println("Monte " + suffix + " failed at checkpoint #" + i);
+                System.out.println("Expected: " + Arrays.toString(expected));
+                System.out.println("Actual " + Arrays.toString(output));
+                passed = false;
+                break;
+            }
+
+        }
+
+        Long end = System.nanoTime();
+
+        if(passed) {
+            double timeMillis = (end - start) / 1E6;
+            double timeSeconds = (end - start) / 1E9;
+            System.out.println("SHAKE-" + suffix + " Monte test passed in " + timeMillis
+                    + " milliseconds (~" + (int) (1_000_000 / timeSeconds) + " tests per second).");
+        }
+    }
+
+    public static long bytesToInt(final byte[] b) {
+        int result = 0;
+        for (int i = 0; i < Short.BYTES; i++) {
+            result <<= Byte.SIZE;
+            result |= (b[i] & 0xFF);
+        }
+        return result;
+    }
 
     private static void simpleSHAKETest() {
         byte[] message = HEXF.parseHex("8d8001e2c096f1b88e7c9224a086efd4797fbf74a8033a2d422a2b6b8f6747e4");
@@ -470,9 +514,9 @@ public class Main {
             }
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
-               //fos.write(contents);
-               //fos.write(mac);
-               fos.write(out);
+                //fos.write(contents);
+                //fos.write(mac);
+                fos.write(out);
             }
             // System.out.println(new String(contents));
             System.out.println(HEXF.formatHex(nonce));
@@ -523,7 +567,7 @@ public class Main {
             }
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
-               fos.write(contents);
+                fos.write(contents);
             }
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
@@ -610,7 +654,7 @@ public class Main {
                     // 0 = "encrypt"
                     // 1 = passphrase
                     // 2 = input file directory
-                    
+
                     encrypt(args[2], args[1], null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
@@ -632,14 +676,14 @@ public class Main {
                     // 1 = passphrase
                     // 2 = random nonce from encryption
                     // 3 = input file directory
-                    
+
                     decrypt(args[3], args[1], HEXF.parseHex(args[2]), null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
             case "test":
-                //testSHA3();
+                testSHA3();
                 testSHAKE();
                 //System.out.println("Testing SHAKE:");
                 //simpleSHAKETest();
