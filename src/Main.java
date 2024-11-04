@@ -531,9 +531,24 @@ public class Main {
             sanitizedOutputDir = dir.replaceAll(".enc", "");
         }
         try {
-            byte[] contents = Files.readAllBytes(Paths.get(dir));
+            byte[] all = Files.readAllBytes(Paths.get(dir));
+            byte[] contents = new byte[all.length - 32];
+            byte[] expectedMAC = new byte[32];
+            for (int i = 0; i < contents.length; i++) {
+                contents[i] = all[i];
+            }
+            for (int i = 0; i < expectedMAC.length; i++) {
+                expectedMAC[i] = all[i + contents.length];
+            }
             ///* debug */ System.out.println(contents.length);
             byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
+
+            SHA3SHAKE macSponge = new SHA3SHAKE();
+            macSponge.init(256);
+            macSponge.absorb(nonce);
+            macSponge.absorb(hashedKey);
+            macSponge.absorb(contents);
+            byte[] mac = macSponge.digest();
 
             SHA3SHAKE sponge = new SHA3SHAKE();
             sponge.init(128);
@@ -544,6 +559,10 @@ public class Main {
 
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
+            }
+
+            if (!Arrays.equals(expectedMAC, mac)) {
+                System.out.println("Message Authentication Codes do not match. Expected incorrect password - please try again.");
             }
 
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
