@@ -235,7 +235,7 @@ public class SHA3SHAKE {
     }
 
     /**
-     * Compute the streamlined SHAKE-<128,256> on input X with output bit length L.
+     * Compute the streamlined SHAKE-<128,256> on input X with an output bit length L.
      *
      * @param suffix desired security level (either 128 or 256)
      * @param X      data to be hashed
