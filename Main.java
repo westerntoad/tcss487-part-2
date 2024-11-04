@@ -433,6 +433,10 @@ public class Main {
     }
 
     private static final void encrypt(String dir, String pass, String outputDir) {
+        String sanitizedOutputDir = outputDir;
+        if (outputDir == null) {
+            sanitizedOutputDir = dir + ".enc";
+        }
         try {
             SecureRandom random = new SecureRandom();
             byte[] contents = Files.readAllBytes(Paths.get(dir));
@@ -452,7 +456,7 @@ public class Main {
                 contents[i] ^= cipher[i];
             }
 
-            try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
                fos.write(contents);
             }
             // System.out.println(new String(contents));
@@ -463,6 +467,10 @@ public class Main {
     }
 
     private static final void decrypt(String dir, String pass, byte[] nonce, String outputDir) {
+        String sanitizedOutputDir = outputDir;
+        if (outputDir == null) {
+            sanitizedOutputDir = dir.replaceAll(".enc", "");
+        }
         try {
             byte[] contents = Files.readAllBytes(Paths.get(dir));
             ///* debug */ System.out.println(contents.length);
@@ -479,7 +487,7 @@ public class Main {
                 contents[i] ^= cipher[i];
             }
 
-            try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
                fos.write(contents);
             }
         } catch (IOException e) {
@@ -562,12 +570,16 @@ public class Main {
                     // 3 = output file directory
 
                     encrypt(args[2], args[1], args[3]);
+                } else if (args.length == 3) {
+                    // # arguments
+                    // 0 = "encrypt"
+                    // 1 = passphrase
+                    // 2 = input file directory
+                    
+                    encrypt(args[2], args[1], null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
-                // DEBUG
-                // cipher = 38f2f5c0d9c5
-                // nonce = a7bcf3afb8a3fca71de7ab251c018da1
                 break;
             case "decrypt":
                 if (args.length == 5) {
@@ -579,6 +591,14 @@ public class Main {
                     // 4 = output file directory
 
                     decrypt(args[3], args[1], HEXF.parseHex(args[2]), args[4]);
+                } else if (args.length == 4) {
+                    // # arguments
+                    // 0 = "decrypt"
+                    // 1 = passphrase
+                    // 2 = random nonce from encryption
+                    // 3 = input file directory
+                    
+                    decrypt(args[3], args[1], HEXF.parseHex(args[2]), null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
