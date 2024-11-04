@@ -230,8 +230,8 @@ public class SHA3SHAKE {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
         sponge.absorb(X);
-        out = sponge.digest(output);
-        return out;
+        output = sponge.digest(output);
+        return output;
     }
 
     /**
@@ -251,8 +251,8 @@ public class SHA3SHAKE {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(suffix);
         sponge.absorb(X);
-        out = sponge.squeeze(L / 8);
-        return out;
+        output = sponge.squeeze(L / 8);
+        return output;
     }
 
     /**
