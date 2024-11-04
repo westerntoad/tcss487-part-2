@@ -561,7 +561,6 @@ public class Main {
                 contents[i] ^= cipher[i];
             }
 
-
             if (!Arrays.equals(expectedMAC, mac)) {
                 System.out.println("Message Authentication Codes do not match. Expected incorrect password - please try again.");
             }
