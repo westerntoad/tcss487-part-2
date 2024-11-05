@@ -4,6 +4,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 
+/**
+ * Main class to hash, create MACs, encrypt, and decrypt files.
+ * The class also runs Known Answer Tests and Monte Carlo Tests for SHA3 and SHAKE.
+ *
+ * @author Christian Bonnalie
+ * @author Abraham Engebretson
+ * @author Ethan Somdahl
+ */
 public class Main {
 
     /**
