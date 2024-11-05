@@ -534,6 +534,27 @@ public class Main {
     }
 
     /**
+     * Generate a MAC from user input.
+     * @param pass      the passkey.
+     * @param suffix    the security level.
+     * @param length    the length of the MAC.
+     */
+    private static void macFromUser(String pass, int suffix, int length) {
+        if (length <= 0) {
+            System.out.println("Error: MAC tag lengths must be positive.");
+        }
+        Scanner scanner = new Scanner(System.in);
+        byte[] contents = scanner.nextLine().getBytes();
+        SHA3SHAKE sponge = new SHA3SHAKE();
+        sponge.init(suffix);
+        sponge.absorb(pass.getBytes());
+        sponge.absorb(contents);
+        byte[] mac = sponge.squeeze(length);
+
+        System.out.println(HEXF.formatHex(mac));
+    }
+
+    /**
      * Encrypt a file with a given passkey.
      * @param dir       the path to the file.
      * @param pass      the passkey.
@@ -714,17 +735,22 @@ public class Main {
                 } else if (args.length == 4) {
                     // # arguments
                     // 0 = "mac"
-                    // 1 = passkey
-                    // 2 = file directory
+                    // 1 = security level
+                    // 2 = passkey
                     // 3 = number of outputted bits
 
-                    // default security level is 256
-                    try {
-                        int length = Integer.parseInt(args[3]);
-                        macFromFile(args[2], args[1], 256, length);
-                    } catch (NumberFormatException e) {
-                        System.out.println("Error parsing MAC output length.");
+                    if (!args[1].matches("128|256")) {
+                        System.out.println("Error: Invalid security level for Message Authentication Code. Implemented security levels include: 224, 256, 384, or 512.");
+                    } else {
+                        try {
+                            int length = Integer.parseInt(args[3]);
+                            int suffix = Integer.parseInt(args[1]);
+                            macFromUser(args[2], suffix, length);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Error parsing MAC output length.");
+                        }
                     }
+
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
