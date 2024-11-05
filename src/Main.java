@@ -21,7 +21,6 @@ public class Main {
 
     /**
      * Enum to represent the different SHA3 versions.
-     * Each version has a bit-length, and a path to the test vectors.
      */
     private enum SHAVersion {
         SHA224(224),
@@ -42,6 +41,9 @@ public class Main {
         }
     }
 
+    /**
+     * Enum to represent the different SHAKE versions.
+     */
     private enum SHAKEVersion {
         SHAKE128(128),
         SHAKE256(256);
@@ -62,23 +64,39 @@ public class Main {
     }
 
     /**
-     * Class to represent a Known Answer Test Vector.
-     * Each vector has a list of message lengths, messages, and expected message digests.
+     * Class to represent SHA-3 Known Answer Test Vector.
+     * @param lengths   the lengths of the messages.
+     * @param messages  the messages.
+     * @param expected  the expected output.
      */
     private record SHA3KATVector(List<Integer> lengths, List<String> messages, List<String> expected) {
     }
 
     /**
-     * Class to represent a Monte Carlo Test Vector.
-     * Each vector has a seed and a list of message digests.
+     * Class to represent SHA-3 Monte Carlo Test Vector.
+     * @param seed              the seed for the Monte Carlo test.
+     * @param messageDigests    the message digests for the Monte Carlo test.
      */
     private record SHA3MonteVector(String seed, List<String> messageDigests) {
     }
 
+    /**
+     * Class to represent a Known Answer Test Vector for SHAKE.
+     * @param lengths   the lengths of the messages.
+     * @param messages  the messages.
+     * @param expected  the expected output.
+     * @param outLength the output lengths.
+     */
     private record SHAKEKATVector(List<Integer> lengths, List<String> messages, List<String> expected,
                                   List<Integer> outLength) {
     }
 
+    /**
+     * Class to represent a Monte Carlo Test Vector for SHAKE.
+     * @param seed              the seed for the Monte Carlo test.
+     * @param messageDigests    the message digests for the Monte Carlo test.
+     * @param outputLengths     the output lengths for the Monte Carlo test.
+     */
     private record SHAKEMonteVector(String seed, List<String> messageDigests, List<Integer> outputLengths) {
     }
 
@@ -108,6 +126,9 @@ public class Main {
             }
     );
 
+    /**
+     * Map to store the paths to the SHAKE test vectors.
+     */
     private static final Map<Integer, String[]> SHAKEVectorPaths = Map.of(
             128, new String[]{
                     "tests/shakebytetestvectors/SHAKE128ShortMsg.rsp",
@@ -125,11 +146,10 @@ public class Main {
 
 
     /**
-     * Parse a Known Answer Test Vector from a file.
-     *
-     * @param path the path to the test vector file.
-     * @return the parsed test vector.
-     * @throws FileNotFoundException if the file is not found.
+     * Parse a SHA3 Known Answer Test vector.
+     * @param                           path the path to the test vector file.
+     * @return                          the parsed test vector.
+     * @throws FileNotFoundException    if the file is not found.
      */
     private static SHA3KATVector parseSHA3KATVector(String path) throws FileNotFoundException {
 
@@ -156,6 +176,12 @@ public class Main {
         return new SHA3KATVector(vectorLengths, vectorMessages, vectorExpected);
     }
 
+    /**
+     * Parse a SHAKE Known Answer Test vector.
+     * @param path                      the path to the test vector file.
+     * @return                          the parsed test vector.
+     * @throws FileNotFoundException    if the file is not found.
+     */
     private static SHAKEKATVector parseSHAKEKATVector(String path) throws FileNotFoundException {
 
         List<Integer> vectorLengths = new ArrayList<>();
@@ -204,11 +230,10 @@ public class Main {
     }
 
     /**
-     * Parse a Monte Carlo Test Vector from a file.
-     *
-     * @param path the path to the test vector file.
-     * @return the parsed test vector.
-     * @throws FileNotFoundException if the file is not found.
+     * Parse SHA-3 Monte Carlo Test Vector from a file.
+     * @param                           path the path to the test vector file.
+     * @return                          the parsed test vector.
+     * @throws FileNotFoundException    if the file is not found.
      */
     private static SHA3MonteVector parseSHA3MonteVector(String path) throws FileNotFoundException {
 
@@ -230,6 +255,12 @@ public class Main {
         return new SHA3MonteVector(seed.get(0), messageDigests);
     }
 
+    /**
+     * Parse a SHAKE Monte Carlo Test Vector from a file.
+     * @param path                      the path to the test vector file.
+     * @return                          the parsed test vector.
+     * @throws FileNotFoundException    if the file is not found.
+     */
     private static SHAKEMonteVector parseSHAKEMonteVector(String path) throws FileNotFoundException {
 
         String seed = "";
@@ -256,7 +287,6 @@ public class Main {
 
     /**
      * Run the SHA3 Known Answer Tests and Monte Carlo Tests.
-     *
      * @throws FileNotFoundException if the test vector files are not found.
      */
     private static void testSHA3() throws FileNotFoundException {
@@ -274,6 +304,10 @@ public class Main {
         }
     }
 
+    /**
+     * Run the SHAKE Known Answer Tests and Monte Carlo Tests.
+     * @throws FileNotFoundException if the test vector files are not found.
+     */
     private static void testSHAKE() throws FileNotFoundException {
         for (SHAKEVersion version : SHAKEVersion.values()) {
             SHAKEKATVector parsedShort = parseSHAKEKATVector(version.shortPath);
@@ -292,7 +326,6 @@ public class Main {
 
     /**
      * Run the SHA3 Known Answer Tests for a given suffix and vector.
-     *
      * @param suffix the bit-length of the SHA3 version.
      * @param vector the test vector to run.
      */
@@ -322,6 +355,11 @@ public class Main {
         }
     }
 
+    /**
+     * Run the SHAKE Known Answer Tests for a given suffix and vector.
+     * @param suffix the bit-length of the SHAKE version.
+     * @param vector the test vector to run.
+     */
     private static void runSHAKEKAT(int suffix, SHAKEKATVector vector) {
         List<Integer> failedTests = new ArrayList<>();
         int testCount = vector.lengths.size();
@@ -351,7 +389,6 @@ public class Main {
 
     /**
      * Run the SHA3 Monte Carlo Tests for a given suffix and vector.
-     *
      * @param suffix the bit-length of the SHA3 version.
      * @param vector the test vector to run.
      */
@@ -388,6 +425,11 @@ public class Main {
         }
     }
 
+    /**
+     * Run the SHAKE Monte Carlo Tests for a given suffix and vector.
+     * @param suffix the bit-length of the SHAKE version.
+     * @param vector the test vector to run.
+     */
     private static void runSHAKEMonte(int suffix, SHAKEMonteVector vector) {
 
 
@@ -437,6 +479,11 @@ public class Main {
         }
     }
 
+    /**
+     * Convert a byte array to an integer.
+     * @param b the byte array to convert.
+     * @return  the integer representation of the byte array.
+     */
     public static long bytesToInt(final byte[] b) {
         int result = 0;
         for (int i = 0; i < Short.BYTES; i++) {
@@ -446,7 +493,12 @@ public class Main {
         return result;
     }
 
-    private static final void hash(String dir, int suffix) {
+    /**
+     * Hash a file with a given security level.
+     * @param dir       the path to the file.
+     * @param suffix    the security level.
+     */
+    private static void hash(String dir, int suffix) {
         try {
             byte[] contents = Files.readAllBytes(Paths.get(dir));
             byte[] output = SHA3SHAKE.SHA3(suffix, contents, null);
@@ -456,7 +508,14 @@ public class Main {
         }
     }
 
-    private static final void macFromFile(String dir, String pass, int suffix, int length) {
+    /**
+     * Generate a MAC from a file.
+     * @param dir       the path to the file.
+     * @param pass      the passkey.
+     * @param suffix    the security level.
+     * @param length    the length of the MAC.
+     */
+    private static void macFromFile(String dir, String pass, int suffix, int length) {
         if (length <= 0) {
             System.out.println("Error: MAC tag lengths must be positive.");
         }
@@ -474,7 +533,13 @@ public class Main {
         }
     }
 
-    private static final void encrypt(String dir, String pass, String outputDir) {
+    /**
+     * Encrypt a file with a given passkey.
+     * @param dir       the path to the file.
+     * @param pass      the passkey.
+     * @param outputDir the path to the output file.
+     */
+    private static void encrypt(String dir, String pass, String outputDir) {
         String sanitizedOutputDir = outputDir;
         if (outputDir == null) {
             sanitizedOutputDir = dir + ".enc";
@@ -522,7 +587,13 @@ public class Main {
         }
     }
 
-    private static final void decrypt(String dir, String pass, String outputDir) {
+    /**
+     * Decrypt a file with a given passkey.
+     * @param dir       the path to the file.
+     * @param pass      the passkey.
+     * @param outputDir the path to the output file.
+     */
+    private static void decrypt(String dir, String pass, String outputDir) {
         String sanitizedOutputDir = outputDir;
         if (outputDir == null) {
             sanitizedOutputDir = dir.replaceAll(".enc", "");
@@ -587,7 +658,11 @@ public class Main {
         }
     }
 
-    
+    /**
+     * Main method to run the application.
+     * @param args                      the arguments to run the application.
+     * @throws FileNotFoundException    if the file is not found.
+     */
     public static void main(String[] args) throws FileNotFoundException {
         switch (args[0].toLowerCase()) {
             case "hash":
@@ -601,7 +676,7 @@ public class Main {
                     if (!args[1].matches("224|256|384|512")) {
                         System.out.println("Error: Invalid security level for hashing function. Implemented security levels include: 224, 256, 384, or 512.");
                     } else {
-                        hash(args[2], Integer.valueOf(args[1]));
+                        hash(args[2], Integer.parseInt(args[1]));
                     }
                 } else if (args.length == 2) {
                     // # arguments
