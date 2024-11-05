@@ -482,26 +482,30 @@ public class Main {
             sanitizedOutputDir = dir + ".enc";
         }
         try {
-            SecureRandom random = new SecureRandom();
+            // read file
             byte[] contents = Files.readAllBytes(Paths.get(dir));
-            ///* debug */ System.out.println(contents.length);
+
+            // generate the nonce
+            SecureRandom random = new SecureRandom();
             byte[] nonce = new byte[16];
             random.nextBytes(nonce);
+
+            // hash the password
             byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
 
+            // absorb nonce and password, then squeeze same length as content
             SHA3SHAKE sponge = new SHA3SHAKE();
             sponge.init(128);
             sponge.absorb(nonce);
             sponge.absorb(hashedKey);
             byte[] cipher = sponge.squeeze(contents.length);
-            ///* debug */ System.out.println(HEXF.formatHex(cipher));
-            byte[] out = new byte[contents.length + 32];
 
+            // xor content with squeezed bytes
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
-                out[i] = contents[i];
             }
 
+            // generate MAC
             SHA3SHAKE macSponge = new SHA3SHAKE();
             macSponge.init(256);
             macSponge.absorb(nonce);
@@ -509,40 +513,48 @@ public class Main {
             macSponge.absorb(contents);
             byte[] mac = macSponge.digest();
 
-            for (int i = 0; i < 32; i++) {
-                out[contents.length + i] = mac[i];
-            }
-
+            // write contents, nonce, and mac
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
-                //fos.write(contents);
-                //fos.write(mac);
-                fos.write(out);
+                fos.write(contents);
+                fos.write(nonce);
+                fos.write(mac);
             }
-            // System.out.println(new String(contents));
-            System.out.println(HEXF.formatHex(nonce));
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
         }
     }
 
-    private static final void decrypt(String dir, String pass, byte[] nonce, String outputDir) {
+    private static final void decrypt(String dir, String pass, String outputDir) {
         String sanitizedOutputDir = outputDir;
         if (outputDir == null) {
             sanitizedOutputDir = dir.replaceAll(".enc", "");
         }
         try {
+            // read contents of file
             byte[] all = Files.readAllBytes(Paths.get(dir));
-            byte[] contents = new byte[all.length - 32];
-            byte[] expectedMAC = new byte[32];
+
+            // store contents of file in array minus the MAc and nonce
+            byte[] contents = new byte[all.length - 48];
             for (int i = 0; i < contents.length; i++) {
                 contents[i] = all[i];
             }
-            for (int i = 0; i < expectedMAC.length; i++) {
-                expectedMAC[i] = all[i + contents.length];
+            
+            // store nonce in array
+            byte[] nonce = new byte[16];
+            for (int i = 0; i < nonce.length; i++) {
+                nonce[i] = all[i + contents.length];
             }
-            ///* debug */ System.out.println(contents.length);
+
+            // store mac from file in array
+            byte[] expectedMAC = new byte[32];
+            for (int i = 0; i < expectedMAC.length; i++) {
+                expectedMAC[i] = all[i + contents.length + nonce.length];
+            }
+
+            // hash the password
             byte[] hashedKey = SHA3SHAKE.SHAKE(128, pass.getBytes(), 128, null);
 
+            // generate mac
             SHA3SHAKE macSponge = new SHA3SHAKE();
             macSponge.init(256);
             macSponge.absorb(nonce);
@@ -550,21 +562,25 @@ public class Main {
             macSponge.absorb(contents);
             byte[] mac = macSponge.digest();
 
+            // compare generated mac to stored mac
             if (!Arrays.equals(expectedMAC, mac)) {
                 System.out.println("Message Authentication Codes do not match. Expected incorrect password - please try again.");
+                return;
             }
 
+            // absorb nonce and password, then squeeze same length as content
             SHA3SHAKE sponge = new SHA3SHAKE();
             sponge.init(128);
             sponge.absorb(nonce);
             sponge.absorb(hashedKey);
             byte[] cipher = sponge.squeeze(contents.length);
-            ///* debug */ System.out.println(HEXF.formatHex(cipher));
 
+            // xor content with squeezed bytes
             for (int i = 0; i < contents.length; i++) {
                 contents[i] ^= cipher[i];
             }
 
+            // write expected decrypted contents
             try (FileOutputStream fos = new FileOutputStream(sanitizedOutputDir)) {
                 fos.write(contents);
             }
@@ -661,23 +677,21 @@ public class Main {
                 }
                 break;
             case "decrypt":
-                if (args.length == 5) {
+                if (args.length == 4) {
                     // # arguments
                     // 0 = "decrypt"
                     // 1 = passphrase
-                    // 2 = random nonce from encryption
-                    // 3 = input file directory
-                    // 4 = output file directory
+                    // 2 = input file directory
+                    // 3 = output file directory
 
-                    decrypt(args[3], args[1], HEXF.parseHex(args[2]), args[4]);
-                } else if (args.length == 4) {
+                    decrypt(args[2], args[1], args[3]);
+                } else if (args.length == 3) {
                     // # arguments
                     // 0 = "decrypt"
                     // 1 = passphrase
-                    // 2 = random nonce from encryption
-                    // 3 = input file directory
+                    // 2 = input file directory
 
-                    decrypt(args[3], args[1], HEXF.parseHex(args[2]), null);
+                    decrypt(args[2], args[1], null);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
