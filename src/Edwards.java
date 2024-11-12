@@ -154,9 +154,9 @@ public class Edwards {
             
             Point out = new Point();
             for (int i = m.bitLength(); i >= 0; i--) {
-                out = out.add(out);
+                out = out.add(out).mod(CONSTANT_R);
                 if (m.testBit(i)) {
-                    out = out.add(this);
+                    out = out.add(this).mod(CONSTANT_R);
                 }
             }
 
