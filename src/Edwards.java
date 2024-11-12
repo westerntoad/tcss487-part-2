@@ -5,7 +5,8 @@ import java.math.BigInteger;
 */
 public class Edwards {
 
-    public static final BigInteger CONSTANT_R = BigInteger.TWO.pow(254).subtract(new BigInteger("87175310462106073678594642380840586067"));
+    public static final BigInteger CONSTANT_R
+        = BigInteger.TWO.pow(254).subtract(new BigInteger("87175310462106073678594642380840586067"));
 
     /**
     * Create an instance of the default curve NUMS-256.
@@ -154,9 +155,9 @@ public class Edwards {
             
             Point out = new Point();
             for (int i = m.bitLength(); i >= 0; i--) {
-                out = out.add(out).mod(CONSTANT_R);
+                out = out.add(out);
                 if (m.testBit(i)) {
-                    out = out.add(this).mod(CONSTANT_R);
+                    out = out.add(this);
                 }
             }
 
