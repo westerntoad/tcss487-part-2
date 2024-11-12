@@ -686,6 +686,11 @@ public class Main {
      */
     public static void main(String[] args) throws FileNotFoundException {
         switch (args[0].toLowerCase()) {
+            case "ecc":
+                Edwards ed = new Edwards();
+                Edwards.Point point = ed.new Point();
+                System.out.println(point);
+                break;
             case "hash":
                 if (args.length == 3) {
                     // # arguments
