@@ -27,6 +27,18 @@ public class Edwards {
      */
     public Edwards() { /* ... */ }
 
+    public static BigInteger getP() {
+        return CONSTANT_P;
+    }
+
+    public static BigInteger getD() {
+        return CONSTANT_D;
+    }
+
+    public static BigInteger getR() {
+        return CONSTANT_R;
+    }
+
     /**
      * Determine if a given affine coordinate pair P = (x, y)
      * defines a point on the curve
