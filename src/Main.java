@@ -275,6 +275,7 @@ public class Main {
         }
     }
 
+    // TODO need to require output file for all methods
     public static void main(String[] args) {
 
         switch (args[0].toLowerCase()) {
