@@ -7,8 +7,6 @@ import java.security.SecureRandom;
 import java.util.*;
 
 /**
- * Main class to hash, create MACs, encrypt, and decrypt files.
- * The class also runs Known Answer Tests and Monte Carlo Tests for SHA3 and SHAKE.
  *
  * @author Christian Bonnalie
  * @author Abraham Engebretson
@@ -18,8 +16,7 @@ public class Main {
 
     public static final HexFormat HEXF = HexFormat.of();
 
-
-    private static void generateKeyPair(byte[] passphrase, String outputDir) {
+    private static BigInteger generateKeyPair(byte[] passphrase, String outputDir) {
 
         if (outputDir == null) {
             outputDir = "../public-key.txt";
@@ -55,11 +52,15 @@ public class Main {
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
         }
+
+        return s;
     }
 
-    private static void encrypt(String publicKeyFile, byte[] message, String outputDir) {
+    private static void encrypt(String publicKeyFile, String message, String outputDir) {
 
         try {
+            byte[] messageBytes = Files.readAllBytes(Paths.get(message));
+
             // read public key from file
             List<String> publicKeyLines = Files.readAllLines(Paths.get(publicKeyFile));
 
@@ -97,10 +98,10 @@ public class Main {
             shake128.absorb(ke);
 
             // squeeze the length of the message and xor with the message
-            byte[] stream = shake128.squeeze(message.length);
-            byte[] c = new byte[message.length];
-            for (int i = 0; i < message.length; i++) {
-                c[i] = (byte) (message[i] ^ stream[i]);
+            byte[] stream = shake128.squeeze(messageBytes.length);
+            byte[] c = new byte[messageBytes.length];
+            for (int i = 0; i < messageBytes.length; i++) {
+                c[i] = (byte) (messageBytes[i] ^ stream[i]);
             }
 
             // init sha3-256, absorb ka and c, extract 256-bit t
@@ -128,6 +129,63 @@ public class Main {
 
     }
 
+    private static void decrypt(String passphrase, String inputDir, String outputDir) {
+
+        // recompute the private key s
+        BigInteger s = generateKeyPair(passphrase.getBytes(), null);
+
+        try {
+            // read input from file
+            List<String> inputLines = Files.readAllLines(Paths.get(inputDir));
+            BigInteger Zx = new BigInteger(HEXF.parseHex(inputLines.get(0)));
+            BigInteger Zy = new BigInteger(HEXF.parseHex(inputLines.get(1)));
+            byte[] c = HEXF.parseHex(inputLines.get(2));
+            byte[] t = HEXF.parseHex(inputLines.get(3));
+
+            // create point Z from input
+            Edwards instance = new Edwards();
+            Edwards.Point Z = instance.getPoint(Zy, Zy.testBit(0));
+
+            // compute W = sZ
+            Edwards.Point W = Z.mul(s);
+
+            // init SHAKE-256 and absorb the y-coordinate of W
+            SHA3SHAKE shake256 = new SHA3SHAKE();
+            shake256.init(256);
+            shake256.absorb(W.y.toByteArray());
+
+            // squeeze two successive 256-bit byte arrays ka and ke
+            byte[] ka = shake256.squeeze(32);
+            byte[] ke = shake256.squeeze(32);
+
+            SHA3SHAKE sha256 = new SHA3SHAKE();
+            sha256.init(256);
+            sha256.absorb(ka);
+            sha256.absorb(c);
+
+            byte[] tPrime = sha256.squeeze(32);
+
+            SHA3SHAKE shake128 = new SHA3SHAKE();
+            shake128.init(128);
+            shake128.absorb(ke);
+            byte[] stream = shake128.squeeze(c.length);
+
+            for (int i = 0; i < c.length; i++) {
+                c[i] ^= stream[i];
+            }
+
+            if (!Arrays.equals(t, tPrime)) {
+                System.out.println("Error: Invalid message. Please try again.");
+                return;
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+                fos.write(c);
+            }
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
 
     public static void main(String[] args) {
 
@@ -151,13 +209,29 @@ public class Main {
                     // 0 = "encrypt"
                     // 1 = public key file
                     // 2 = message
-                    encrypt(args[1], args[2].getBytes(), "../encrypted-message.txt");
+                    encrypt(args[1], args[2], "../encrypted-message.txt");
                 } else if (args.length == 4) {
                     // 0 = "encrypt"
                     // 1 = public key file
                     // 2 = message
                     // 3 = output file
-                    encrypt(args[1], args[2].getBytes(), args[3]);
+                    encrypt(args[1], args[2], args[3]);
+                } else {
+                    System.out.println("Error: Invalid number of arguments.");
+                }
+                break;
+            case "decrypt":
+                if (args.length == 3) {
+                    // 0 = "decrypt"
+                    // 1 = passphrase
+                    // 2 = input file
+                    decrypt(args[1], args[2], "../decrypted-message.txt");
+                } else if (args.length == 4) {
+                    // 0 = "decrypt"
+                    // 1 = passphrase
+                    // 2 = input file
+                    // 3 = output file
+                    decrypt(args[1], args[2], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
