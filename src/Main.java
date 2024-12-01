@@ -24,6 +24,16 @@ public class Main {
         DEFAULT_PATHS.put("generate", "../signature.txt");
     }
 
+    private static final String HELP_MESSAGE = """
+            Commands:
+            keygen <passphrase> [<output file>]
+            encrypt <public key file> <message> [<output file>]
+            decrypt <passphrase> <input file> [<output file>]
+            generate <file path> <passphrase> [<output file>]
+            verify <message file> <signature file> <public key file>
+            (output files are optional)
+            """;
+
     private static BigInteger generatePrivateKey(byte[] passphrase) {
         // init SHAKE-128, absorb passphrase
         SHA3SHAKE sponge = new SHA3SHAKE();
@@ -340,6 +350,9 @@ public class Main {
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
+            case "help":
+                System.out.println(HELP_MESSAGE);
+                break;
             default:
                 System.out.println("Error: First argument not a valid application feature.");
                 break;
