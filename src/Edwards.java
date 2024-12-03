@@ -131,7 +131,7 @@ public class Edwards {
             return false;
         }
         // Not sure why this fails?
-        /*if (!a.add(a.negate()).equals(o)) {
+        /*if (!g.add(g.negate()).equals(o)) {
             System.out.println("Failed property:");
             System.out.println("G + (-G) = O");
             return false;
@@ -160,9 +160,14 @@ public class Edwards {
         int numTests = 100;
         Random rand = new Random();
         for (int i = 0; i < numTests; i++) {
-            BigInteger k = BigInteger.valueOf(rand.nextInt());
-            BigInteger l = BigInteger.valueOf(rand.nextInt());
-            BigInteger m = BigInteger.valueOf(rand.nextInt());
+            //BigInteger k = BigInteger.valueOf(rand.nextInt());
+            //BigInteger l = BigInteger.valueOf(rand.nextInt());
+            //BigInteger m = BigInteger.valueOf(rand.nextInt());
+            /* debug */ BigInteger k = BigInteger.valueOf(3);
+            /* debug */ BigInteger l = BigInteger.valueOf(3);
+            /* debug */ BigInteger m = BigInteger.valueOf(3);
+
+            /* debug */ System.out.println("Iteration " + (i + 1) + ":");
 
             if (!g.mul(k).equals(g.mul(k.mod(CONSTANT_R)))) {
                 System.out.println("Failed property:");
@@ -194,6 +199,7 @@ public class Edwards {
                 System.out.println("For values:\nk = " + k + "\nl = " + l + "\nm = " + m);
                 return false;
             }
+            /* debug */ System.out.println("Iteration " + (i + 1) + " passed.");
         }
 
         return true;
@@ -315,9 +321,7 @@ public class Edwards {
          * @return m*P
          */
         public Point mul(BigInteger m) {
-            // TODO Optimize this approach to be more efficient
-
-            Point V = new Point();
+            /*Point V = new Point();
             m = m.mod(CONSTANT_R);
 
             for (int i = m.bitLength() - 1; i >= 0; i--) {
@@ -325,6 +329,14 @@ public class Edwards {
                 if (m.testBit(i)) {
                     V = V.add(this);
                 }
+            }
+
+            return V;*/
+            
+            Point V = new Point();
+
+            for (BigInteger i = BigInteger.ZERO; i.compareTo(m) < 0; i = i.add(BigInteger.ONE)) {
+                V = V.add(this);
             }
 
             return V;
