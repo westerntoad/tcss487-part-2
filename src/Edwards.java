@@ -315,19 +315,30 @@ public class Edwards {
          * @return m*P
          */
         public Point mul(BigInteger m) {
-            // TODO Optimize this approach to be more efficient
 
-            Point V = new Point();
             m = m.mod(CONSTANT_R);
+            Point r0 = this;
+            Point r1 = this.add(this);
+            BigInteger swap = BigInteger.ZERO;
+            BigInteger si = BigInteger.ZERO;
 
             for (int i = m.bitLength() - 1; i >= 0; i--) {
-                V = V.add(V);
-                if (m.testBit(i)) {
-                    V = V.add(this);
-                }
+                // condswap
+                si = m.testBit(i) ? BigInteger.ONE : BigInteger.ZERO;
+                swap = swap.xor(si);
+                BigInteger diff = r0.xor(r1).andNot(swap);
+                r0 = r0.xor(diff);
+                r1 = r1.xor(diff);
+
+                r1 = r0.add(r1);
+                r0 = r0.add(r0);
+
+                swap = si;
             }
 
-            return V;
+
+
+            return r0;
         }
 
         /**
