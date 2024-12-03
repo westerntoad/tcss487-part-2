@@ -118,7 +118,8 @@ public class Edwards {
 
     public boolean test() {
         Point o = new Point();
-        Point g = new Point(BigInteger.valueOf(4), BigInteger.valueOf(23));
+        Edwards e = new Edwards();
+        Point g = e.gen();
 
         if (!g.mul(BigInteger.ZERO).equals(o)) {
             System.out.println("Failed property:");
@@ -130,12 +131,6 @@ public class Edwards {
             System.out.println("1 * G = G");
             return false;
         }
-        // Not sure why this fails?
-        /*if (!a.add(a.negate()).equals(o)) {
-            System.out.println("Failed property:");
-            System.out.println("G + (-G) = O");
-            return false;
-        }*/
         if (!g.mul(BigInteger.valueOf(2)).equals(g.add(g))) {
             System.out.println("Failed property:");
             System.out.println("2 * G = G + G");
@@ -160,12 +155,9 @@ public class Edwards {
         int numTests = 100;
         Random rand = new Random();
         for (int i = 0; i < numTests; i++) {
-            //BigInteger k = BigInteger.valueOf(rand.nextInt());
-            //BigInteger l = BigInteger.valueOf(rand.nextInt());
-            //BigInteger m = BigInteger.valueOf(rand.nextInt());
-            /* debug */ BigInteger k = BigInteger.valueOf(1024);
-            /* debug */ BigInteger l = BigInteger.valueOf(1024);
-            /* debug */ BigInteger m = BigInteger.valueOf(1024);
+            BigInteger k = BigInteger.valueOf(rand.nextInt());
+            BigInteger l = BigInteger.valueOf(rand.nextInt());
+            BigInteger m = BigInteger.valueOf(rand.nextInt());
 
             if (!g.mul(k).equals(g.mul(k.mod(CONSTANT_R)))) {
                 System.out.println("Failed property:");
@@ -277,7 +269,7 @@ public class Edwards {
          */
         public Point negate() {
             if (isNeutral) return this;
-            return new Point(this.x.negate(), this.y);
+            return new Point(this.x.negate().add(CONSTANT_P), this.y);
         }
 
         /**
