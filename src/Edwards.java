@@ -160,9 +160,12 @@ public class Edwards {
         int numTests = 100;
         Random rand = new Random();
         for (int i = 0; i < numTests; i++) {
-            BigInteger k = BigInteger.valueOf(rand.nextInt());
-            BigInteger l = BigInteger.valueOf(rand.nextInt());
-            BigInteger m = BigInteger.valueOf(rand.nextInt());
+            //BigInteger k = BigInteger.valueOf(rand.nextInt());
+            //BigInteger l = BigInteger.valueOf(rand.nextInt());
+            //BigInteger m = BigInteger.valueOf(rand.nextInt());
+            /* debug */ BigInteger k = BigInteger.valueOf(1024);
+            /* debug */ BigInteger l = BigInteger.valueOf(1024);
+            /* debug */ BigInteger m = BigInteger.valueOf(1024);
 
             if (!g.mul(k).equals(g.mul(k.mod(CONSTANT_R)))) {
                 System.out.println("Failed property:");
