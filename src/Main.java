@@ -275,10 +275,20 @@ public class Main {
         }
     }
 
+    private static void testEdwards() {
+        
+    }
+
     // TODO need to require output file for all methods
     public static void main(String[] args) {
 
         switch (args[0].toLowerCase()) {
+            case "test":
+                Edwards e = new Edwards();
+                if (e.test()) {
+                    System.out.println("Passed all tests.");
+                }
+                break;
             case "keygen":
                 if (args.length == 2) {
                     // 0 = "keygen"

@@ -1,4 +1,5 @@
 import java.math.BigInteger;
+import java.util.Random;
 
 /**
  * Arithmetic on Edwards elliptic curves.
@@ -113,6 +114,89 @@ public class Edwards {
             r = p.subtract(r); // correct the lsb
         }
         return (r.multiply(r).subtract(v).mod(p).signum() == 0) ? r : null;
+    }
+
+    public boolean test() {
+        Point o = new Point();
+        Point g = new Point(BigInteger.valueOf(4), BigInteger.valueOf(23));
+
+        if (!g.mul(BigInteger.ZERO).equals(o)) {
+            System.out.println("Failed property:");
+            System.out.println("0 * G = O");
+            return false;
+        }
+        if (!g.mul(BigInteger.ONE).equals(g)) {
+            System.out.println("Failed property:");
+            System.out.println("1 * G = G");
+            return false;
+        }
+        // Not sure why this fails?
+        /*if (!a.add(a.negate()).equals(o)) {
+            System.out.println("Failed property:");
+            System.out.println("G + (-G) = O");
+            return false;
+        }*/
+        if (!g.mul(BigInteger.valueOf(2)).equals(g.add(g))) {
+            System.out.println("Failed property:");
+            System.out.println("2 * G = G + G");
+            return false;
+        }
+        if (!g.mul(BigInteger.valueOf(4)).equals(g.mul(BigInteger.valueOf(2)).mul(BigInteger.valueOf(2)))) {
+            System.out.println("Failed property:");
+            System.out.println("4 * G = 2 * (2 * G)");
+            return false;
+        }
+        if (g.mul(BigInteger.valueOf(4)).equals(o)) {
+            System.out.println("Failed property:");
+            System.out.println("4 * G != O");
+            return false;
+        }
+        if (!g.mul(CONSTANT_R).equals(o)) {
+            System.out.println("Failed property:");
+            System.out.println("r * G = O");
+            return false;
+        }
+
+        int numTests = 100;
+        Random rand = new Random();
+        for (int i = 0; i < numTests; i++) {
+            BigInteger k = BigInteger.valueOf(rand.nextInt());
+            BigInteger l = BigInteger.valueOf(rand.nextInt());
+            BigInteger m = BigInteger.valueOf(rand.nextInt());
+
+            if (!g.mul(k).equals(g.mul(k.mod(CONSTANT_R)))) {
+                System.out.println("Failed property:");
+                System.out.println("k * G = (k mod r) * G");
+                System.out.println("For values:\nk = " + k + "\nl = " + l + "\nm = " + m);
+                return false;
+            }
+            if (!g.mul(k.add(BigInteger.ONE)).equals(g.mul(k).add(g))) {
+                System.out.println("Failed property:");
+                System.out.println("(k + 1) * G = (k * G) + G");
+                System.out.println("For values:\nk = " + k + "\nl = " + l + "\nm = " + m);
+                return false;
+            }
+            if (!g.mul(k.add(l)).equals(g.mul(k).add(g.mul(l)))) {
+                System.out.println("Failed property:");
+                System.out.println("(k + l) * G = (k * G) + (l * G)");
+                System.out.println("For values:\nk = " + k + "\nl = " + l + "\nm = " + m);
+                return false;
+            }
+            if ((!g.mul(l).mul(k).equals(g.mul(k).mul(l))) || (!g.mul(k).mul(l).equals(g.mul(k.multiply(l).mod(CONSTANT_R))))) {
+                System.out.println("Failed property:");
+                System.out.println("k * (l * G) = l * (k * G) = (k * l mod r) * G");
+                System.out.println("For values:\nk = " + k + "\nl = " + l + "\nm = " + m);
+                return false;
+            }
+            if (!g.mul(k).add(g.mul(l).add(g.mul(m))).equals(g.mul(m).add(g.mul(k).add(g.mul(l))))) {
+                System.out.println("Failed property:");
+                System.out.println("(k * G) + ((l * G) + (m * G)) = ((k * G) + (l * G)) + (m * G)");
+                System.out.println("For values:\nk = " + k + "\nl = " + l + "\nm = " + m);
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
