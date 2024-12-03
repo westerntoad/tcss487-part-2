@@ -118,7 +118,8 @@ public class Edwards {
 
     public boolean test() {
         Point o = new Point();
-        Point g = new Point(BigInteger.valueOf(4), BigInteger.valueOf(23));
+        Edwards e = new Edwards();
+        Point g = e.gen();
 
         if (!g.mul(BigInteger.ZERO).equals(o)) {
             System.out.println("Failed property:");
