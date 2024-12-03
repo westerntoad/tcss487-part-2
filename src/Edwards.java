@@ -90,7 +90,15 @@ public class Edwards {
         }
 
         Point point = new Point(x, y);
-        return point.mul(CONSTANT_R).isZero() ? point : new Point();
+
+        Point temp = point.mul(CONSTANT_R);
+
+        if (!temp.equals(new Point())) {
+            return new Point();
+        }
+
+
+        return point.mul(CONSTANT_R).equals(new Point()) ? point : new Point();
     }
 
     /**
@@ -136,7 +144,6 @@ public class Edwards {
 
         public final BigInteger x;
         public final BigInteger y;
-        private final boolean isNeutral;
 
         /**
          * Create a copy of the neutral element on this curve.
@@ -144,7 +151,6 @@ public class Edwards {
         public Point() {
             this.x = BigInteger.ZERO;
             this.y = BigInteger.ONE;
-            this.isNeutral = true;
         }
 
         /**
@@ -157,16 +163,6 @@ public class Edwards {
         private Point(BigInteger x, BigInteger y) {
             this.x = x;
             this.y = y;
-            this.isNeutral = false;
-        }
-
-        /**
-         * Determine if this point is the neutral element O on the curve.
-         *
-         * @return true iff this point is O
-         */
-        public boolean isZero() {
-            return isNeutral;
         }
 
         /**
@@ -177,8 +173,6 @@ public class Edwards {
          * @return true iff P stands for the same point as this
          */
         public boolean equals(Point P) {
-            if (this.isNeutral && P.isNeutral) return true;
-            if (this.isNeutral || P.isNeutral) return false;
             return this.x.equals(P.x) && this.y.equals(P.y);
         }
 
@@ -189,7 +183,6 @@ public class Edwards {
          * @return -P
          */
         public Point negate() {
-            if (isNeutral) return this;
             return new Point(this.x.negate(), this.y);
         }
 
@@ -200,8 +193,13 @@ public class Edwards {
          * @return this + P
          */
         public Point add(Point P) {
-            if (P.isZero()) return this;
-            if (this.isZero()) return P;
+            if (this.x.equals(BigInteger.ZERO) && this.y.equals(BigInteger.ONE)) {
+                return P;
+            }
+
+            if (P.x.equals(BigInteger.ZERO) && P.y.equals(BigInteger.ONE)) {
+                return this;
+            }
 
             BigInteger x1 = this.x;
             BigInteger y1 = this.y;

@@ -275,6 +275,104 @@ public class Main {
         }
     }
 
+    private static void test() {
+
+        Edwards e = new Edwards();
+        Edwards.Point G = e.gen();
+        Edwards.Point neutral = G.mul(BigInteger.ZERO);
+        int failed = 0;
+
+        System.out.println("Testing arithmetic properties...");
+
+        // 0 * G = O
+        if (!neutral.equals(G.mul(BigInteger.ZERO))) {
+            System.out.println("Error: 0 * G != O");
+            failed++;
+        }
+
+        // 1 * G = G
+        if (!G.equals(G.mul(BigInteger.ONE))) {
+            System.out.println("Error: 1 * G != G");
+            failed++;
+        }
+
+        // G + (-G) = O
+        if (!neutral.equals(G.add(G.negate()))) {
+            System.out.println("Error: G + (-G) != O");
+            failed++;
+        }
+
+        // 2 * G = G + G
+        if (!G.add(G).equals(G.mul(BigInteger.valueOf(2)))) {
+            System.out.println("Error: 2 * G != G + G");
+            failed++;
+        }
+
+        // 4 * G = 2 * (2 * G)
+        if (!G.mul(BigInteger.valueOf(4)).equals(
+                G.mul(BigInteger.valueOf(2)).mul(BigInteger.valueOf(2)))) {
+            System.out.println("Error: 4 * G != 2 * (2 * G)");
+            failed++;
+        }
+
+        // 4 * G != 0
+        if (neutral.equals(G.mul(BigInteger.valueOf(4)))) {
+            System.out.println("Error: 4 * G == O");
+            failed++;
+        }
+
+        // r * G = 0
+        if (!neutral.equals(G.mul(Edwards.getR()))) {
+            System.out.println("Error: r * G != O");
+            failed++;
+        }
+
+        for (int i = 0; i < 50; i++) {
+
+            BigInteger k = new BigInteger(new SecureRandom().generateSeed(32)).mod(Edwards.getR());
+            BigInteger l = new BigInteger(new SecureRandom().generateSeed(32)).mod(Edwards.getR());
+            BigInteger m = new BigInteger(new SecureRandom().generateSeed(32)).mod(Edwards.getR());
+
+            System.out.println("Testing for:\nk = " + k + "\nl = " + l + "\nm = " + m);
+
+            // kG = (k mod r)G
+            if (!G.mul(k).equals(G.mul(k.mod(Edwards.getR())))) {
+                failed++;
+                System.out.println("Error: kG != (k mod r)G");
+            }
+
+            // (k+1)G = kG + G
+            if (!G.mul(k.add(BigInteger.ONE)).equals(G.mul(k).add(G))) {
+                failed++;
+                System.out.println("Error: (k+1)G != kG + G");
+            }
+
+            // (k + l)G = kG + lG
+            if (!G.mul(k.add(l)).equals(G.mul(k).add(G.mul(l)))) {
+                failed++;
+                System.out.println("Error: (k + l)G != kG + lG");
+            }
+
+            // k(lG) = l(kG) = (kl mod r)G
+            if (!G.mul(l).mul(k).equals(G.mul(k).mul(l))) {
+                failed++;
+                System.out.println("Error: k(lG) != l(kG)");
+            }
+
+            // kG + (lG + mG) = (kG + lG) + mG
+            if (!G.mul(k).add(G.mul(l).add(G.mul(m))).equals(
+                    G.mul(m).add(G.mul(k).add(G.mul(l))))) {
+                failed++;
+                System.out.println("Error: kG + (lG + mG) != (kG + lG) + mG");
+            }
+
+        }
+
+        if (failed == 0) System.out.println("All Tests Passed");
+        else System.out.println("Failed " + failed + " Tests");
+
+    }
+
     // TODO need to require output file for all methods
     public static void main(String[] args) {
 
@@ -351,6 +449,9 @@ public class Main {
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
+            case "test":
+                test();
+                break;
             case "help":
                 System.out.println(HELP_MESSAGE);
                 break;
