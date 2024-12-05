@@ -282,7 +282,7 @@ public class Main {
         Edwards.Point neutral = G.mul(BigInteger.ZERO);
         int failed = 0;
 
-        System.out.println("Testing arithmetic properties...");
+        System.out.println("Testing arithmdetic properties...");
 
         // 0 * G = O
         if (!neutral.equals(G.mul(BigInteger.ZERO))) {
@@ -449,6 +449,7 @@ public class Main {
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
+                break;
             case "test":
                 test();
                 break;
