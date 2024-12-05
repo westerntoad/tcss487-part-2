@@ -45,12 +45,13 @@ public class Main {
         return new BigInteger(output).mod(Edwards.getR());
     }
 
-    private static void generateKeyPair(byte[] passphrase, String outputDir) {
+    private static void generateKeyPair(String passphrase, String outputDir) {
 
-        BigInteger s = generatePrivateKey(passphrase);
+        BigInteger s = generatePrivateKey(passphrase.getBytes());
         // compute V <- sG
         Edwards instance = new Edwards();
         Edwards.Point V = instance.gen().mul(s);
+
 
         // if LSB of x of B is 1
         if (V.x.testBit(0)) {
@@ -60,6 +61,11 @@ public class Main {
             // replace V by -V
             V = V.negate();
         }
+
+        System.out.println("s = " + s);
+        System.out.println("V = " + V.toString());
+        System.out.println();
+
 
         // write public key to file
         try (FileOutputStream fos = new FileOutputStream(outputDir)) {
@@ -234,6 +240,13 @@ public class Main {
         // compute z = (k-h*s) mod r
         BigInteger z = k.subtract(h.multiply(s)).mod(Edwards.getR());
 
+        System.out.println("s = " + s);
+        System.out.println("U = " + U);
+        System.out.println("h = " + h);
+        System.out.println("z = " + z);
+        System.out.println();
+
+
         // the signature is the pair (h,z)
         try (FileOutputStream fos = new FileOutputStream(outputDir)) {
             fos.write(HEXF.formatHex(h.toByteArray()).getBytes());
@@ -285,6 +298,13 @@ public class Main {
             } else {
                 System.out.println("Signature not verified.");
             }
+
+            System.out.println("h = " + h);
+            System.out.println("z = " + z);
+            System.out.println("V = " + V);
+            System.out.println("U' = " + uPrime);
+            System.out.println("h' = " + hPrime);
+            System.out.println();
 
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
@@ -397,12 +417,12 @@ public class Main {
                 if (args.length == 2) {
                     // 0 = "keygen"
                     // 1 = passphrase
-                    generateKeyPair(args[1].getBytes(), DEFAULT_PATHS.get("keygen"));
+                    generateKeyPair(args[1], DEFAULT_PATHS.get("keygen"));
                 } else if (args.length == 3) {
                     // 0 = "keygen"
                     // 1 = passphrase
                     // 2 = output file
-                    generateKeyPair(args[1].getBytes(), args[2]);
+                    generateKeyPair(args[1], args[2]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
