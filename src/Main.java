@@ -321,8 +321,6 @@ public class Main {
 
         System.out.println("Testing arithmdetic properties...");
 
-        System.out.println("3 * G = " + G.mul(BigInteger.valueOf(3)));
-
         // 0 * G = O
         if (!neutral.equals(G.mul(BigInteger.ZERO))) {
             System.out.println("Error: 0 * G != O");
