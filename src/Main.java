@@ -39,14 +39,15 @@ public class Main {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(128);
         sponge.absorb(passphrase);
-        // squeeze a 256-bit byte array
-        byte[] output = sponge.squeeze(32);
+        int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
+        byte[] output = sponge.squeeze(rBytes << 1);
         // create a BigInteger from it, reduce this value mod r.
         return new BigInteger(output).mod(Edwards.getR());
     }
 
     private static void generateKeyPair(String passphrase, String outputDir) {
 
+        System.out.println("passphrase: -" + passphrase + "-");
         BigInteger s = generatePrivateKey(passphrase.getBytes());
         // compute V <- sG
         Edwards instance = new Edwards();
@@ -319,6 +320,8 @@ public class Main {
         int failed = 0;
 
         System.out.println("Testing arithmdetic properties...");
+
+        System.out.println("3 * G = " + G.mul(BigInteger.valueOf(3)));
 
         // 0 * G = O
         if (!neutral.equals(G.mul(BigInteger.ZERO))) {
