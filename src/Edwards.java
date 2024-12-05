@@ -1,17 +1,30 @@
-import java.awt.*;
 import java.math.BigInteger;
 
 /**
  * Arithmetic on Edwards elliptic curves.
+ *
+ * @author  Christian Bonnalie
+ * @author  Abraham Engebretson
+ * @author  Ethan Somdahl
+ * @version Autumn 2024
  */
 public class Edwards {
 
+    /**
+        * The prime modulus p of the finite field F_p
+     */
     private static final BigInteger CONSTANT_P =
             BigInteger.TWO.pow(256).subtract(BigInteger.valueOf(189));
 
+    /**
+     * The curve equation coefficient d in the equation
+     */
     private static final BigInteger CONSTANT_D =
             BigInteger.valueOf(15343);
 
+    /**
+     * The order r of the base point G on the curve
+     */
     private static final BigInteger CONSTANT_R =
             BigInteger.TWO.pow(254).subtract(new BigInteger("87175310462106073678594642380840586067"));
 
@@ -20,19 +33,17 @@ public class Edwards {
      */
     public Edwards() { /* ... */ }
 
-    public static BigInteger getP() {
-        return CONSTANT_P;
-    }
-
+    /**
+     * Get the order r.
+     * @return R
+     */
     public static BigInteger getR() {
         return CONSTANT_R;
     }
 
-
     /**
      * Determine if a given affine coordinate pair P = (x, y)
      * defines a point on the curve.
-     * x^2+y^2 = 1+dx^2y^2
      *
      * @param x x-coordinate of presumed point on the curve
      * @param y y-coordinate of presumed point on the curve
@@ -40,7 +51,9 @@ public class Edwards {
      */
     public boolean isPoint(BigInteger x, BigInteger y) {
 
+        //x^2 + y^2
         BigInteger left = (x.multiply(x)).add(y.multiply(y)).mod(CONSTANT_P);
+        //1 + dx^2y^2
         BigInteger right = BigInteger.ONE.add(CONSTANT_D.multiply(x.multiply(x)).multiply(y.multiply(y))).mod(CONSTANT_P);
 
         return left.equals(right);
@@ -58,7 +71,6 @@ public class Edwards {
     /**
      * Create a point from its y-coordinate and
      * the least significant bit (LSB) of its x-coordinate.
-     * x = +/- sqrt((1 - y^2) / (1 - d*y^2)) mod p
      *
      * @param y the y-coordinate of the desired point
      * @param x_lsb the LSB of its x-coordinate
@@ -66,6 +78,7 @@ public class Edwards {
      * otherwise the neutral element O = (0, 1)
      */
     public Point getPoint(BigInteger y, boolean x_lsb) {
+        // x = +/- sqrt((1 - y^2) / (1 - d*y^2)) mod p
         BigInteger num = BigInteger.ONE.subtract(y.multiply(y));
         BigInteger den = BigInteger.ONE.subtract(CONSTANT_D.multiply(y.multiply(y)));
         BigInteger denInv = den.modInverse(CONSTANT_P);
@@ -74,6 +87,14 @@ public class Edwards {
         return new Point(x, y);
     }
 
+    /**
+     * Compute the square root of a given value v mod p.
+     *
+     * @param v     the value to take the square root of
+     * @param p     the modulus
+     * @param lsb   the least significant bit
+     * @return      the square root if it exists, null otherwise
+     */
     public static BigInteger sqrt(BigInteger v, BigInteger p, boolean lsb) {
         assert (p.testBit(0) && p.testBit(1)); // p = 3 (mod 4)
         if (v.signum() == 0) {

@@ -2,9 +2,10 @@
  * Implementation of the SHA-3 and SHAKE cryptographic hash functions.
  * This implementation is based on the NIST FIPS 202 specification.
  *
- * @author Christian Bonnalie
- * @author Abraham Engebretson
- * @author Ethan Somdahl
+ * @author  Christian Bonnalie
+ * @author  Abraham Engebretson
+ * @author  Ethan Somdahl
+ * @version Autumn 2024
  */
 public class SHA3SHAKE {
 

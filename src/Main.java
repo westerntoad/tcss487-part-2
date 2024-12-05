@@ -7,33 +7,35 @@ import java.security.SecureRandom;
 import java.util.*;
 
 /**
- * @author Christian Bonnalie
- * @author Abraham Engebretson
- * @author Ethan Somdahl
+ * Main class for the Edwards elliptic curve.
+ *
+ * @author  Christian Bonnalie
+ * @author  Abraham Engebretson
+ * @author  Ethan Somdahl
+ * @version Autumn 2024
  */
 public class Main {
 
+    /**
+     * HexFormat instance for formatting byte arrays to hex strings.
+     */
     private static final HexFormat HEXF = HexFormat.of();
-
-    private static final Map<String, String> DEFAULT_PATHS = new HashMap<>();
-
-    static {
-        DEFAULT_PATHS.put("keygen", "../public-key.txt");
-        DEFAULT_PATHS.put("encrypt", "../encrypted-message.txt");
-        DEFAULT_PATHS.put("decrypt", "../decrypted-message.txt");
-        DEFAULT_PATHS.put("generate", "../signature.txt");
-    }
 
     private static final String HELP_MESSAGE = """
             Commands:
-            keygen <passphrase> [<output file>]
-            encrypt <public key file> <message> [<output file>]
-            decrypt <passphrase> <input file> [<output file>]
-            generate <file path> <passphrase> [<output file>]
+            keygen <passphrase> <output file>
+            encrypt <public key file> <message> <output file>
+            decrypt <passphrase> <input file> <output file>
+            generate <file path> <passphrase> <output file>
             verify <message file> <signature file> <public key file>
-            (output files are optional)
             """;
 
+    /**
+     * Generate a private key from a passphrase.
+     *
+     * @param passphrase    the passphrase to generate the private key from
+     * @return              the private key
+     */
     private static BigInteger generatePrivateKey(byte[] passphrase) {
         // init SHAKE-128, absorb passphrase
         SHA3SHAKE sponge = new SHA3SHAKE();
@@ -45,6 +47,11 @@ public class Main {
         return new BigInteger(output).mod(Edwards.getR());
     }
 
+    /**
+     * Generate a key pair from a passphrase.
+     * @param passphrase    the passphrase to generate the key pair from
+     * @param outputDir     the output directory for the public key
+     */
     private static void generateKeyPair(String passphrase, String outputDir) {
 
         System.out.println("passphrase: -" + passphrase + "-");
@@ -79,6 +86,13 @@ public class Main {
 
     }
 
+    /**
+     * Encrypt a message using a public key.
+     *
+     * @param publicKeyFile the public key file
+     * @param message       the message to encrypt
+     * @param outputDir     the output directory for the encrypted message
+     */
     private static void encrypt(String publicKeyFile, String message, String outputDir) {
         try {
             byte[] messageBytes = Files.readAllBytes(Paths.get(message));
@@ -151,6 +165,13 @@ public class Main {
 
     }
 
+    /**
+     * Decrypt a message using a passphrase.
+     *
+     * @param passphrase    the passphrase to decrypt the message
+     * @param inputDir      the input directory for the encrypted message
+     * @param outputDir     the output directory for the decrypted message
+     */
     private static void decrypt(String passphrase, String inputDir, String outputDir) {
         // recompute the private key s
         BigInteger s = generatePrivateKey(passphrase.getBytes());
@@ -208,6 +229,13 @@ public class Main {
         }
     }
 
+    /**
+     * Generate a signature for a file using a passphrase.
+     *
+     * @param filePath      the file path to generate the signature for
+     * @param passphrase    the passphrase to generate the signature from
+     * @param outputDir     the output directory for the signature
+     */
     private static void generateSignature(String filePath, String passphrase, String outputDir) {
         // recompute s from the passphrase
         BigInteger s = generatePrivateKey(passphrase.getBytes());
@@ -258,6 +286,13 @@ public class Main {
         }
     }
 
+    /**
+     * Verify a signature for a file using a public key.
+     *
+     * @param messageFile   the message file to verify the signature for
+     * @param signatureFile the signature file to verify
+     * @param publicKeyFile the public key file to verify the signature with
+     */
     private static void verifySignature(String messageFile, String signatureFile, String publicKeyFile) {
 
         try {
@@ -319,7 +354,7 @@ public class Main {
         Edwards.Point neutral = G.mul(BigInteger.ZERO);
         int failed = 0;
 
-        System.out.println("Testing arithmdetic properties...");
+        System.out.println("Testing arithmetic properties...");
 
         // 0 * G = O
         if (!neutral.equals(G.mul(BigInteger.ZERO))) {
@@ -410,16 +445,16 @@ public class Main {
 
     }
 
-    // TODO need to require output file for all methods
+    /**
+     * Main method for the Edwards elliptic curve.
+     *
+     * @param args  the command line arguments
+     */
     public static void main(String[] args) {
 
         switch (args[0].toLowerCase()) {
             case "keygen":
-                if (args.length == 2) {
-                    // 0 = "keygen"
-                    // 1 = passphrase
-                    generateKeyPair(args[1], DEFAULT_PATHS.get("keygen"));
-                } else if (args.length == 3) {
+                if (args.length == 3) {
                     // 0 = "keygen"
                     // 1 = passphrase
                     // 2 = output file
@@ -429,12 +464,7 @@ public class Main {
                 }
                 break;
             case "encrypt":
-                if (args.length == 3) {
-                    // 0 = "encrypt"
-                    // 1 = public key file
-                    // 2 = message
-                    encrypt(args[1], args[2], DEFAULT_PATHS.get("encrypt"));
-                } else if (args.length == 4) {
+                if (args.length == 4) {
                     // 0 = "encrypt"
                     // 1 = public key file
                     // 2 = message
@@ -445,12 +475,7 @@ public class Main {
                 }
                 break;
             case "decrypt":
-                if (args.length == 3) {
-                    // 0 = "decrypt"
-                    // 1 = passphrase
-                    // 2 = input file
-                    decrypt(args[1], args[2], DEFAULT_PATHS.get("decrypt"));
-                } else if (args.length == 4) {
+                if (args.length == 4) {
                     // 0 = "decrypt"
                     // 1 = passphrase
                     // 2 = input file
@@ -461,12 +486,7 @@ public class Main {
                 }
                 break;
             case "generate":
-                if (args.length == 3) {
-                    // 0 = "generate"
-                    // 1 = file path
-                    // 2 = passphrase
-                    generateSignature(args[1], args[2], DEFAULT_PATHS.get("generate"));
-                } else if (args.length == 4) {
+                if (args.length == 4) {
                     // 0 = "generate"
                     // 1 = file path
                     // 2 = passphrase
