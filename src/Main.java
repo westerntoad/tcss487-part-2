@@ -93,8 +93,12 @@ public class Main {
             Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
 
             // generate random k mod r
-            int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
-            var k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
+            //int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
+            //var k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
+            SecureRandom random = new SecureRandom();
+            byte[] nonce = new byte[32];
+            random.nextBytes(nonce);
+            BigInteger k = new BigInteger(nonce).mod(Edwards.getR());
 
             // compute W = kV and Z = kG
             Edwards.Point W = V.mul(k);
@@ -206,10 +210,14 @@ public class Main {
     private static void generateSignature(String filePath, String passphrase, String outputDir) {
         // recompute s from the passphrase
         BigInteger s = generatePrivateKey(passphrase.getBytes());
+        //SecureRandom random = new SecureRandom();
 
         // generate random k mod r
         int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
         var k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
+        //byte[] nonce = new byte[32];
+        //random.nextBytes(nonce);
+        //BigInteger k = new BigInteger(nonce).mod(Edwards.getR());
 
         // compute U = kG
         Edwards instance = new Edwards();
@@ -222,6 +230,7 @@ public class Main {
             sha256.absorb(Files.readAllBytes(Paths.get(filePath)));
         } catch (Exception e) {
             System.out.println("Error: Invalid path to file. Please try again.");
+            return;
         }
         // extract the 256-bit byte array digest
         byte[] digest = sha256.digest();
@@ -265,7 +274,7 @@ public class Main {
             BigInteger hPrime = new BigInteger(digest).mod(Edwards.getR());
 
             if (h.equals(hPrime)) {
-                System.out.println("Signature Verified!");
+                System.out.println("Signature verified!");
             } else {
                 System.out.println("Signature not verified.");
             }
@@ -375,6 +384,10 @@ public class Main {
 
     // TODO need to require output file for all methods
     public static void main(String[] args) {
+        if (args.length == 0) {
+            System.out.println(HELP_MESSAGE);
+            return;
+        }
 
         switch (args[0].toLowerCase()) {
             case "keygen":
@@ -431,9 +444,9 @@ public class Main {
                     generateSignature(args[1], args[2], DEFAULT_PATHS.get("generate"));
                 } else if (args.length == 4) {
                     // 0 = "generate"
-                    // 1 = file path
+                    // 1 = message file path
                     // 2 = passphrase
-                    // 3 = output file
+                    // 3 = output file path
                     generateSignature(args[1], args[2], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
@@ -449,6 +462,7 @@ public class Main {
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
+                break;
             case "test":
                 test();
                 break;
