@@ -45,10 +45,8 @@ public class Main {
         return new BigInteger(output).mod(Edwards.getR());
     }
 
-    private static BigInteger generateKeyPair(byte[] passphrase, String outputDir) {
+    private static void generateKeyPair(byte[] passphrase, String outputDir) {
 
-
-        // generate s from a passphrase
         BigInteger s = generatePrivateKey(passphrase);
         // compute V <- sG
         Edwards instance = new Edwards();
@@ -56,8 +54,9 @@ public class Main {
 
         // if LSB of x of B is 1
         if (V.x.testBit(0)) {
+            System.out.println("LSB of x of B is 1");
             // replace s by r-s
-            s = Edwards.getR().subtract(s);
+            s = Edwards.getR().subtract(s).mod(Edwards.getR());
             // replace V by -V
             V = V.negate();
         }
@@ -71,7 +70,6 @@ public class Main {
             System.out.println("Error: Invalid path to file. Please try again.");
         }
 
-        return s;
     }
 
     private static void encrypt(String publicKeyFile, String message, String outputDir) {
@@ -214,6 +212,12 @@ public class Main {
         // compute U = kG
         Edwards instance = new Edwards();
         Edwards.Point U = instance.gen().mul(k);
+
+        if (!instance.isPoint(U.x, U.y)) {
+            System.out.println("Error: Invalid point. Please try again.");
+            return;
+        }
+
         // init sha256, absorb Uy and message
         SHA3SHAKE sha256 = new SHA3SHAKE();
         sha256.init(256);
@@ -254,7 +258,19 @@ public class Main {
             Edwards instance = new Edwards();
             Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
 
-            Edwards.Point uPrime = instance.gen().mul(z).add(V.mul(h));
+            if (!instance.isPoint(V.x, V.y)) {
+                System.out.println("Error: Invalid point. Please try again.");
+                return;
+            }
+
+            Edwards.Point one = instance.gen().mul(z);
+            Edwards.Point two = V.mul(h);
+            Edwards.Point uPrime = one.add(two);
+
+            if (!instance.isPoint(uPrime.x, uPrime.y)) {
+                System.out.println("Error: Invalid point. Please try again.");
+                return;
+            }
 
             SHA3SHAKE sha256 = new SHA3SHAKE();
             sha256.init(256);

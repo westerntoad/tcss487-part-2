@@ -1,7 +1,11 @@
 import java.math.BigInteger;
 
 /**
- * Arithmetic on Edwards elliptic curves.
+ * Implementation of the NUMS ed-256-mers* Edwards curve.
+ *
+ * @author Christian Bonnalie
+ * @author Abraham Engebretson
+ * @author Ethan Somdahl
  */
 public class Edwards {
 
@@ -10,6 +14,7 @@ public class Edwards {
      */
     private static final BigInteger CONSTANT_P
             = new BigInteger("115792089237316195423570985008687907853269984665640564039457584007913129639747");
+
 
     /**
      * The curve equation coefficient d of the curve.
@@ -27,16 +32,12 @@ public class Edwards {
      */
     public Edwards() { /* ... */ }
 
-    public static BigInteger getP() {
-        return CONSTANT_P;
-    }
-
-    public static BigInteger getD() {
-        return CONSTANT_D;
-    }
-
     public static BigInteger getR() {
         return CONSTANT_R;
+    }
+
+    public static BigInteger getP() {
+        return CONSTANT_P;
     }
 
     /**
@@ -79,26 +80,17 @@ public class Edwards {
      */
     public Point getPoint(BigInteger y, boolean x_lsb) {
         // x = +/- sqrt((1 - y^2) / (1 - d*y^2)) mod p
-        BigInteger num = BigInteger.ONE.subtract(y.multiply(y)).mod(CONSTANT_P);
-        BigInteger den = BigInteger.ONE.subtract(CONSTANT_D.multiply(y.multiply(y))).mod(CONSTANT_P);
+        BigInteger num = (BigInteger.ONE.subtract(y.multiply(y))).mod(CONSTANT_P);
+        BigInteger den = (BigInteger.ONE.subtract(CONSTANT_D.multiply(y.multiply(y)))).mod(CONSTANT_P);
         BigInteger denInv = den.modInverse(CONSTANT_P);
-        BigInteger xSquared = num.multiply(denInv).mod(CONSTANT_P);
+        BigInteger xSquared = (num.multiply(denInv)).mod(CONSTANT_P);
         BigInteger x = sqrt(xSquared, CONSTANT_P, x_lsb);
 
         if (x == null) {
             return new Point();
         }
 
-        Point point = new Point(x, y);
-
-        Point temp = point.mul(CONSTANT_R);
-
-        if (!temp.equals(new Point())) {
-            return new Point();
-        }
-
-
-        return point.mul(CONSTANT_R).equals(new Point()) ? point : new Point();
+        return new Point(x, y);
     }
 
     /**
@@ -229,7 +221,6 @@ public class Edwards {
          * @return m*P
          */
         public Point mul(BigInteger m) {
-            // TODO Optimize this approach to be more efficient
 
             Point V = new Point();
             m = m.mod(CONSTANT_R);
