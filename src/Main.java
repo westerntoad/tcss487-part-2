@@ -36,11 +36,14 @@ public class Main {
 
     private static BigInteger generatePrivateKey(byte[] passphrase) {
         // init SHAKE-128, absorb passphrase
+        int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(128);
         sponge.absorb(passphrase);
         // squeeze a 256-bit byte array
-        byte[] output = sponge.squeeze(32);
+        byte[] output = sponge.squeeze(rBytes << 1);
+        System.out.println(rBytes);
+        //byte[] output = sponge.squeeze(32);
         // create a BigInteger from it, reduce this value mod r.
         return new BigInteger(output).mod(Edwards.getR());
     }
@@ -90,6 +93,7 @@ public class Main {
                 return;
             }
 
+            BigInteger Vx = new BigInteger(HEXF.parseHex(publicKeyLines.get(0)));
             BigInteger Vy = new BigInteger(HEXF.parseHex(publicKeyLines.get(1)));
 
             // create point V from public key
@@ -488,6 +492,7 @@ public class Main {
                 break;
             case "test":
                 test();
+                //generateKeyPair("Sample password", "temp.txt");
                 break;
             case "help":
                 System.out.println(HELP_MESSAGE);
