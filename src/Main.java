@@ -21,6 +21,8 @@ public class Main {
      */
     private static final HexFormat HEXF = HexFormat.of();
 
+    private static final int R_BYTES = (Edwards.getR().bitLength() + 7) >> 3;
+
     private static final String HELP_MESSAGE = """
             Commands:
             keygen <passphrase> <output file>
@@ -41,19 +43,13 @@ public class Main {
         SHA3SHAKE sponge = new SHA3SHAKE();
         sponge.init(128);
         sponge.absorb(passphrase);
-        int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
-        byte[] output = sponge.squeeze(rBytes << 1);
+        byte[] output = sponge.squeeze(R_BYTES << 1);
         // create a BigInteger from it, reduce this value mod r.
         return new BigInteger(output).mod(Edwards.getR());
     }
 
-    /**
-     * Generate a key pair from a passphrase.
-     * @param passphrase    the passphrase to generate the key pair from
-     * @param outputDir     the output directory for the public key
-     */
-    private static void generateKeyPair(String passphrase, String outputDir) {
-        BigInteger s = generatePrivateKey(passphrase.getBytes());
+    private static byte[] keygen(byte[] passphrase) {
+        BigInteger s = generatePrivateKey(passphrase);
         // compute V <- sG
         Edwards instance = new Edwards();
         Edwards.Point V = instance.gen().mul(s);
@@ -66,94 +62,84 @@ public class Main {
             V = V.negate();
         }
 
-        // write public key to file
-        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
-            fos.write(HEXF.formatHex(V.x.toByteArray()).getBytes());
-            fos.write("\n".getBytes());
-            fos.write(HEXF.formatHex(V.y.toByteArray()).getBytes());
-        } catch (IOException e) {
-            System.out.println("Error: Invalid path to file. Please try again.");
+        byte[] xBytes = V.x.toByteArray();
+        byte[] yBytes = V.y.toByteArray();
+        byte[] out = new byte[64];
+        for (int i = 0; i < 32; i++) {
+            out[i] = xBytes[i];
+        }
+        for (int i = 0; i < 32; i++) {
+            out[i + 32] = yBytes[i];
         }
 
+        return out;
     }
 
-    /**
-     * Encrypt a message using a public key.
-     *
-     * @param publicKeyFile the public key file
-     * @param message       the message to encrypt
-     * @param outputDir     the output directory for the encrypted message
-     */
-    private static void encrypt(String publicKeyFile, String message, String outputDir) {
-        try {
-            byte[] messageBytes = Files.readAllBytes(Paths.get(message));
+    private static byte[] encrypt(byte[] message, byte[] publicKey) {
+        byte[] VyBytes = new byte[32];
+        for (int i = 0; i < 32; i++) {
+            VyBytes[i] = publicKey[i + 32];
+        }
+        BigInteger Vy = new BigInteger(VyBytes);
 
-            // read public key from file
-            List<String> publicKeyLines = Files.readAllLines(Paths.get(publicKeyFile));
+        // create point V from public key
+        Edwards instance = new Edwards();
+        Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
 
-            if (publicKeyLines.size() != 2) {
-                System.out.println("Error: Invalid public key file. Please try again.");
-                return;
-            }
+        // generate random k mod r
+        var k = new BigInteger(new SecureRandom().generateSeed(R_BYTES << 1)).mod(Edwards.getR());
 
-            BigInteger Vy = new BigInteger(HEXF.parseHex(publicKeyLines.get(1)));
+        // compute W = kV and Z = kG
+        Edwards.Point W = V.mul(k);
+        Edwards.Point Z = instance.gen().mul(k);
 
-            // create point V from public key
-            Edwards instance = new Edwards();
-            Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
+        // init SHAKE-256 and absorb the y-coordinate of W
+        SHA3SHAKE shake256 = new SHA3SHAKE();
+        shake256.init(256);
+        shake256.absorb(W.y.toByteArray());
 
-            // generate random k mod r
-            int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
-            var k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
+        // squeeze two successive 256-bit byte arrays
+        byte[] ka = shake256.squeeze(32);
+        byte[] ke = shake256.squeeze(32);
 
-            // compute W = kV and Z = kG
-            Edwards.Point W = V.mul(k);
-            Edwards.Point Z = instance.gen().mul(k);
+        // init SHAKE-128 and absorb ke
+        SHA3SHAKE shake128 = new SHA3SHAKE();
+        shake128.init(128);
+        shake128.absorb(ke);
 
-            // init SHAKE-256 and absorb the y-coordinate of W
-            SHA3SHAKE shake256 = new SHA3SHAKE();
-            shake256.init(256);
-            shake256.absorb(W.y.toByteArray());
-
-            // squeeze two successive 256-bit byte arrays
-            byte[] ka = shake256.squeeze(32);
-            byte[] ke = shake256.squeeze(32);
-
-            // init SHAKE-128 and absorb ke
-            SHA3SHAKE shake128 = new SHA3SHAKE();
-            shake128.init(128);
-            shake128.absorb(ke);
-
-            // squeeze the length of the message and xor with the message
-            byte[] stream = shake128.squeeze(messageBytes.length);
-            byte[] c = new byte[messageBytes.length];
-            for (int i = 0; i < messageBytes.length; i++) {
-                c[i] = (byte) (messageBytes[i] ^ stream[i]);
-            }
-
-            // init sha3-256, absorb ka and c, extract 256-bit t
-            SHA3SHAKE sha256 = new SHA3SHAKE();
-            sha256.init(256);
-            sha256.absorb(ka);
-            sha256.absorb(c);
-            byte[] t = sha256.squeeze(32);
-
-            try (FileOutputStream fos = new FileOutputStream(outputDir)) {
-                // write Z.x and Z.y to file
-                fos.write(HEXF.formatHex(Z.x.toByteArray()).getBytes());
-                fos.write("\n".getBytes());
-                fos.write(HEXF.formatHex(Z.y.toByteArray()).getBytes());
-                fos.write("\n".getBytes());
-                // write c to file
-                fos.write(HEXF.formatHex(c).getBytes());
-                fos.write("\n".getBytes());
-                // write t to file
-                fos.write(HEXF.formatHex(t).getBytes());
-            }
-        } catch (Exception e) {
-            System.out.println("Error: Invalid path to file. Please try again.");
+        // squeeze the length of the message and xor with the message
+        byte[] stream = shake128.squeeze(message.length);
+        byte[] c = new byte[message.length];
+        for (int i = 0; i < message.length; i++) {
+            c[i] = (byte) (message[i] ^ stream[i]);
         }
 
+        // init sha3-256, absorb ka and c, extract 256-bit t
+        SHA3SHAKE sha256 = new SHA3SHAKE();
+        sha256.init(256);
+        sha256.absorb(ka);
+        sha256.absorb(c);
+        byte[] t = sha256.squeeze(32);
+
+        // Z.x, Z.y, c, t
+        byte[] ZxBytes = Z.x.toByteArray();
+        byte[] ZyBytes = Z.y.toByteArray();
+        byte[] out = new byte[ZxBytes.length + ZyBytes.length + c.length + t.length];
+
+        for (int i = 0; i < ZxBytes.length; i++) {
+            out[i] = ZxBytes[i];
+        }
+        for (int i = 0; i < ZyBytes.length; i++) {
+            out[i + ZxBytes.length] = ZyBytes[i];
+        }
+        for (int i = 0; i < c.length; i++) {
+            out[i + ZxBytes.length + ZyBytes.length] = c[i];
+        }
+        for (int i = 0; i < t.length; i++) {
+            out[i + ZxBytes.length + ZyBytes.length + c.length] = t[i];
+        }
+
+        return out;
     }
 
     /**
@@ -163,105 +149,59 @@ public class Main {
      * @param inputDir      the input directory for the encrypted message
      * @param outputDir     the output directory for the decrypted message
      */
-    private static void decrypt(String passphrase, String inputDir, String outputDir) {
+    private static byte[] decrypt(byte[] encrypted, String passphrase) {
         // recompute the private key s
         BigInteger s = generatePrivateKey(passphrase.getBytes());
 
-        try {
-            // read input from file
-            List<String> inputLines = Files.readAllLines(Paths.get(inputDir));
-            BigInteger Zx = new BigInteger(HEXF.parseHex(inputLines.get(0)));
-            BigInteger Zy = new BigInteger(HEXF.parseHex(inputLines.get(1)));
-            byte[] c = HEXF.parseHex(inputLines.get(2));
-            byte[] t = HEXF.parseHex(inputLines.get(3));
-
-            // create point Z from input
-            Edwards instance = new Edwards();
-            Edwards.Point Z = instance.getPoint(Zy, Zy.testBit(0));
-
-            // compute W = sZ
-            Edwards.Point W = Z.mul(s);
-
-            // init SHAKE-256 and absorb the y-coordinate of W
-            SHA3SHAKE shake256 = new SHA3SHAKE();
-            shake256.init(256);
-            shake256.absorb(W.y.toByteArray());
-
-            // squeeze two successive 256-bit byte arrays ka and ke
-            byte[] ka = shake256.squeeze(32);
-            byte[] ke = shake256.squeeze(32);
-
-            SHA3SHAKE sha256 = new SHA3SHAKE();
-            sha256.init(256);
-            sha256.absorb(ka);
-            sha256.absorb(c);
-
-            byte[] tPrime = sha256.squeeze(32);
-
-            SHA3SHAKE shake128 = new SHA3SHAKE();
-            shake128.init(128);
-            shake128.absorb(ke);
-            byte[] stream = shake128.squeeze(c.length);
-
-            for (int i = 0; i < c.length; i++) {
-                c[i] ^= stream[i];
-            }
-
-            if (!Arrays.equals(t, tPrime)) {
-                System.out.println("Error: Invalid message. Please try again.");
-                return;
-            }
-
-            try (FileOutputStream fos = new FileOutputStream(outputDir)) {
-                fos.write(c);
-            }
-        } catch (IOException e) {
-            System.out.println("Error: Invalid path to file. Please try again.");
+        byte[] ZyBytes = new byte[32];
+        byte[] t = new byte[32];
+        byte[] c = new byte[encrypted.length - 96];
+        for (int i = 0; i < ZyBytes.length; i++) {
+            ZyBytes[i] = encrypted[i + 32];
         }
-    }
-
-    /**
-     * Generate a signature for a file using a passphrase.
-     *
-     * @param filePath      the file path to generate the signature for
-     * @param passphrase    the passphrase to generate the signature from
-     * @param outputDir     the output directory for the signature
-     */
-    private static void generateSignature(String filePath, String passphrase, String outputDir) {
-        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
-            byte[] signature = sign(passphrase, Files.readAllBytes(Paths.get(filePath)));
-            fos.write(signature);
-        } catch (Exception e) {
-            System.out.println("Error: Invalid path to file. Please try again.");
+        for (int i = 0; i < c.length; i++) {
+            c[i] = encrypted[i + 32 + ZyBytes.length];
         }
-    }
-
-    /**
-     * Verify a signature for a file using a public key.
-     *
-     * @param messageFile   the message file to verify the signature for
-     * @param signatureFile the signature file to verify
-     * @param publicKeyFile the public key file to verify the signature with
-     */
-    private static void verifySignature(String messageFile, String signatureFile, String publicKeyFile) {
-        try {
-            byte[] signature = Files.readAllBytes(Paths.get(signatureFile));
-            publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
-            byte[] message = Files.readAllBytes(Paths.get(messageFile));
-
-            if (isVerified()) {
-                System.out.println("Signature Verified!");
-            } else {
-                System.out.println("Signature not verified.");
-            }
-
-            System.out.println(message, signature, publicKey);
-
-        } catch (IOException e) {
-            System.out.println("Error: Invalid path to file. Please try again.");
+        for (int i = 0; i < t.length; i++) {
+            t[i] = encrypted[i + 32 + ZyBytes.length + c.length];
         }
-    }
 
+        // create point Z from input
+        BigInteger Zy = new BigInteger(ZyBytes);
+        Edwards instance = new Edwards();
+        Edwards.Point Z = instance.getPoint(Zy, Zy.testBit(0));
+
+        // compute W = sZ
+        Edwards.Point W = Z.mul(s);
+
+        // init SHAKE-256 and absorb the y-coordinate of W
+        SHA3SHAKE shake256 = new SHA3SHAKE();
+        shake256.init(256);
+        shake256.absorb(W.y.toByteArray());
+
+        // squeeze two successive 256-bit byte arrays ka and ke
+        byte[] ka = shake256.squeeze(32);
+        byte[] ke = shake256.squeeze(32);
+
+        SHA3SHAKE sha256 = new SHA3SHAKE();
+        sha256.init(256);
+        sha256.absorb(ka);
+        sha256.absorb(c);
+
+        byte[] tPrime = sha256.squeeze(32);
+
+        SHA3SHAKE shake128 = new SHA3SHAKE();
+        shake128.init(128);
+        shake128.absorb(ke);
+        byte[] stream = shake128.squeeze(c.length);
+
+        for (int i = 0; i < c.length; i++) {
+            c[i] ^= stream[i];
+        }
+
+        return c;
+    }
+    
     private static byte[] sign(String passphrase, byte[] message) {
         // recompute s from the passphrase
         BigInteger s = generatePrivateKey(passphrase.getBytes());
@@ -299,19 +239,19 @@ public class Main {
         return signature;
     }
 
-    private static boolean isVerified(byte[] message, byte[] signature, byte[] publicKey) {
+    private static boolean verify(byte[] message, byte[] signature, byte[] publicKey) {
         byte[] hBytes = new byte[32];
         for (int i = 0; i < 32; i++) {
             hBytes[i] = signature[i];
         }
         byte[] zBytes = new byte[32];
         for (int i = 0; i < 32; i++) {
-            hBytes[i] = signature[i + 32];
+            zBytes[i] = signature[i + 32];
         }
         BigInteger h = new BigInteger(hBytes);
         BigInteger z = new BigInteger(zBytes);
 
-        VyBytes = new byte[32];
+        byte[] VyBytes = new byte[32];
         for (int i = 0; i < 32; i++) {
             VyBytes[i] = publicKey[i + 32];
         }
@@ -334,84 +274,9 @@ public class Main {
         return h.equals(hPrime);
     }
 
-    /*private static void signedEncrypt(String publicKeyFile, String message, String outputDir, String passphrase) {
-        // generate signature
-        
-
-        try {
-            byte[] messageBytes = Files.readAllBytes(Paths.get(message));
-
-
-            
-
-
-            // read public key from file
-            List<String> publicKeyLines = Files.readAllLines(Paths.get(publicKeyFile));
-
-            if (publicKeyLines.size() != 2) {
-                System.out.println("Error: Invalid public key file. Please try again.");
-                return;
-            }
-
-            BigInteger Vy = new BigInteger(HEXF.parseHex(publicKeyLines.get(1)));
-
-            // create point V from public key
-            Edwards instance = new Edwards();
-            Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
-
-            // generate random k mod r
-            int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
-            var k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
-
-            // compute W = kV and Z = kG
-            Edwards.Point W = V.mul(k);
-            Edwards.Point Z = instance.gen().mul(k);
-
-            // init SHAKE-256 and absorb the y-coordinate of W
-            SHA3SHAKE shake256 = new SHA3SHAKE();
-            shake256.init(256);
-            shake256.absorb(W.y.toByteArray());
-
-            // squeeze two successive 256-bit byte arrays
-            byte[] ka = shake256.squeeze(32);
-            byte[] ke = shake256.squeeze(32);
-
-            // init SHAKE-128 and absorb ke
-            SHA3SHAKE shake128 = new SHA3SHAKE();
-            shake128.init(128);
-            shake128.absorb(ke);
-
-            // squeeze the length of the message and xor with the message
-            byte[] stream = shake128.squeeze(messageBytes.length);
-            byte[] c = new byte[messageBytes.length];
-            for (int i = 0; i < messageBytes.length; i++) {
-                c[i] = (byte) (messageBytes[i] ^ stream[i]);
-            }
-
-            // init sha3-256, absorb ka and c, extract 256-bit t
-            SHA3SHAKE sha256 = new SHA3SHAKE();
-            sha256.init(256);
-            sha256.absorb(ka);
-            sha256.absorb(c);
-            byte[] t = sha256.squeeze(32);
-
-            try (FileOutputStream fos = new FileOutputStream(outputDir)) {
-                // write Z.x and Z.y to file
-                fos.write(HEXF.formatHex(Z.x.toByteArray()).getBytes());
-                fos.write("\n".getBytes());
-                fos.write(HEXF.formatHex(Z.y.toByteArray()).getBytes());
-                fos.write("\n".getBytes());
-                // write c to file
-                fos.write(HEXF.formatHex(c).getBytes());
-                fos.write("\n".getBytes());
-                // write t to file
-                fos.write(HEXF.formatHex(t).getBytes());
-            }
-        } catch (Exception e) {
-            System.out.println("Error: Invalid path to file. Please try again.");
-        }
-
-    }*/
+    private static void signedEncrypt(String publicKeyFile, String message, String outputDir, String passphrase) {
+        // TODO
+    }
 
     private static void signedDecrypt() {
         // TODO
@@ -512,9 +377,145 @@ public class Main {
 
         if (failed == 0) System.out.println("All Tests Passed");
         else System.out.println("Failed " + failed + " Tests");
+    }
+    
+    /**
+     * Generate a key pair from a passphrase.
+     * @param passphrase    the passphrase to generate the key pair from
+     * @param outputDir     the output directory for the public key
+     */
+    private static void keygenService(String passphrase, String outputDir) {
+        // write public key to file
+        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            fos.write(keygen(passphrase.getBytes()));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
+    /**
+     * Encrypt a message using a public key.
+     *
+     * @param publicKeyFile the public key file
+     * @param message       the message to encrypt
+     * @param outputDir     the output directory for the encrypted message
+     */
+    private static void encryptService(String publicKeyFile, String messageFile, String outputDir) {
+        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            byte[] message = Files.readAllBytes(Paths.get(messageFile));
+            byte[] publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
+            fos.write(encrypt(message, publicKey));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
+    /**
+     * Decrypt a message using a passphrase.
+     *
+     * @param passphrase    the passphrase to decrypt the message
+     * @param inputDir      the input directory for the encrypted message
+     * @param outputDir     the output directory for the decrypted message
+     */
+    private static void decryptService(String passphrase, String inputDir, String outputDir) {
+        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            // read input from file
+            byte[] encrypted = Files.readAllBytes(Paths.get(inputDir));
+            fos.write(decrypt(encrypted, passphrase));
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
+
+    /**
+     * Generate a signature for a file using a passphrase.
+     *
+     * @param filePath      the file path to generate the signature for
+     * @param passphrase    the passphrase to generate the signature from
+     * @param outputDir     the output directory for the signature
+     */
+    private static void signService(String messageFile, String passphrase, String outputDir) {
+        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            byte[] signature = sign(passphrase, Files.readAllBytes(Paths.get(messageFile)));
+            fos.write(signature);
+        } catch (Exception e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+    
+    /**
+     * Verify a signature for a file using a public key.
+     *
+     * @param messageFile   the message file to verify the signature for
+     * @param signatureFile the signature file to verify
+     * @param publicKeyFile the public key file to verify the signature with
+     */
+    private static void verifyService(String messageFile, String signatureFile, String publicKeyFile) {
+        try {
+            byte[] message = Files.readAllBytes(Paths.get(messageFile));
+            byte[] signature = Files.readAllBytes(Paths.get(signatureFile));
+            byte[] publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
+
+            if (verify(message, signature, publicKey)) {
+                System.out.println("Signature Verified!");
+            } else {
+                System.out.println("Signature not verified.");
+            }
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+
+    private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
+        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            byte[] message = Files.readAllBytes(Paths.get(messageFile));
+            byte[] publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
+            byte[] encrypted = encrypt(message, publicKey);
+            byte[] signature = sign(passphrase, message);
+            byte[] out = new byte[encrypted.length + signature.length];
+            for (int i = 0; i < encrypted.length; i++) {
+                out[i] = encrypted[i];
+            }
+            for (int i = 0; i < signature.length; i++) {
+                out[i + encrypted.length] = signature[i];
+            }
+
+            fos.write(out);
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
+    }
+    
+    private static void signedDecryptService(String inputDir, String publicKeyFile, String passphrase, String outputDir) {
+        try (FileOutputStream fos = new FileOutputStream(outputDir)) {
+            byte[] publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
+            byte[] raw = Files.readAllBytes(Paths.get(inputDir));
+            byte[] signature = new byte[64];
+            byte[] encrypted = new byte[raw.length - signature.length];
+            for (int i = 0; i < encrypted.length; i++) {
+                encrypted[i] = raw[i];
+            }
+            for (int i = 0; i < signature.length; i++) {
+                signature[i] = raw[i + encrypted.length];
+            }
+            System.out.println(HEXF.formatHex(raw));
+            byte[] decrypted = decrypt(encrypted, passphrase);
+
+            if (verify(decrypted, signature, publicKey)) {
+                System.out.println("Signature Verified!");
+                fos.write(decrypted);
+            } else {
+                System.out.println("Signature not verified.");
+            }
+        } catch (IOException e) {
+            System.out.println("Error: Invalid path to file. Please try again.");
+        }
 
     }
 
+
+    
     /**
      * Main method for the Edwards elliptic curve.
      *
@@ -532,7 +533,7 @@ public class Main {
                     // 0 = "keygen"
                     // 1 = passphrase
                     // 2 = output file
-                    generateKeyPair(args[1], args[2]);
+                    keygenService(args[1], args[2]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
@@ -543,14 +544,15 @@ public class Main {
                     // 1 = public key file
                     // 2 = message
                     // 3 = output file
-                    encrypt(args[1], args[2], args[3]);
+                    encryptService(args[1], args[2], args[3]);
                 } else if (args.length == 5) {
+    //private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
                     // 0 = "encrypt"
                     // 1 = public key file
                     // 2 = message
                     // 3 = output file
                     // 4 = password
-                    //signedEncrypt(args[1], args[2], args[3]);
+                    signedEncryptService(args[2], args[4], args[1], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
@@ -561,13 +563,15 @@ public class Main {
                     // 1 = passphrase
                     // 2 = input file
                     // 3 = output file
-                    decrypt(args[1], args[2], args[3]);
+                    decryptService(args[1], args[2], args[3]);
                 } else if (args.length == 5) {
+    //private static void signedDecryptionService(String inputDir, String publicKeyFile, String passphrase, String outputDir) {
                     // 0 = "decrypt"
                     // 1 = passphrase
                     // 2 = input file
                     // 3 = output file
-                    System.out.println("Error: Invalid number of arguments.");
+                    // 4 = public key file
+                    signedDecryptService(args[2], args[4], args[1], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
@@ -578,7 +582,7 @@ public class Main {
                     // 1 = file path
                     // 2 = passphrase
                     // 3 = output file
-                    generateSignature(args[1], args[2], args[3]);
+                    signService(args[1], args[2], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
@@ -589,7 +593,7 @@ public class Main {
                     // 1 = message file
                     // 2 = signature file
                     // 3 = public key file
-                    verifySignature(args[1], args[2], args[3]);
+                    verifyService(args[1], args[2], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
