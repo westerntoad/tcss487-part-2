@@ -244,48 +244,18 @@ public class Main {
      * @param publicKeyFile the public key file to verify the signature with
      */
     private static void verifySignature(String messageFile, String signatureFile, String publicKeyFile) {
-
         try {
-            List<String> signatureLines = Files.readAllLines(Paths.get(signatureFile));
-            List<String> publicKeyLines = Files.readAllLines(Paths.get(publicKeyFile));
+            byte[] signature = Files.readAllBytes(Paths.get(signatureFile));
+            publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
             byte[] message = Files.readAllBytes(Paths.get(messageFile));
 
-            BigInteger h = new BigInteger(HEXF.parseHex(signatureLines.get(0)));
-            BigInteger z = new BigInteger(HEXF.parseHex(signatureLines.get(1)));
-
-            BigInteger Vy = new BigInteger(HEXF.parseHex(publicKeyLines.get(1)));
-            Edwards instance = new Edwards();
-            Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
-
-            if (!instance.isPoint(V.x, V.y)) {
-                System.out.println("Error: Invalid point. Please try again.");
-                return;
-            }
-
-            Edwards.Point one = instance.gen().mul(z);
-            Edwards.Point two = V.mul(h);
-            Edwards.Point uPrime = one.add(two);
-
-            if (!instance.isPoint(uPrime.x, uPrime.y)) {
-                System.out.println("Error: Invalid point. Please try again.");
-                return;
-            }
-
-            SHA3SHAKE sha256 = new SHA3SHAKE();
-            sha256.init(256);
-            sha256.absorb(uPrime.y.toByteArray());
-            sha256.absorb(message);
-
-            byte[] digest = sha256.digest();
-            BigInteger hPrime = new BigInteger(digest).mod(Edwards.getR());
-
-            if (h.equals(hPrime)) {
+            if (isVerified()) {
                 System.out.println("Signature Verified!");
             } else {
                 System.out.println("Signature not verified.");
             }
 
-            System.out.println();
+            System.out.println(message, signature, publicKey);
 
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
@@ -317,8 +287,8 @@ public class Main {
         BigInteger z = k.subtract(h.multiply(s)).mod(Edwards.getR());
 
         // the signature is the pair (h,z)
-        byte[] hBytes = h.toByteArray();
-        byte[] zBytes = z.toByteArray();
+        byte[] hBytes = h.toByteArray(); // always 32 bytes
+        byte[] zBytes = z.toByteArray(); // always 32 bytes
         byte[] signature = new byte[64];
         for (int i = 0; i < 32; i++) {
             signature[i] = hBytes[i];
@@ -327,7 +297,41 @@ public class Main {
             signature[i + 32] = zBytes[i];
         }
         return signature;
+    }
 
+    private static boolean isVerified(byte[] message, byte[] signature, byte[] publicKey) {
+        byte[] hBytes = new byte[32];
+        for (int i = 0; i < 32; i++) {
+            hBytes[i] = signature[i];
+        }
+        byte[] zBytes = new byte[32];
+        for (int i = 0; i < 32; i++) {
+            hBytes[i] = signature[i + 32];
+        }
+        BigInteger h = new BigInteger(hBytes);
+        BigInteger z = new BigInteger(zBytes);
+
+        VyBytes = new byte[32];
+        for (int i = 0; i < 32; i++) {
+            VyBytes[i] = publicKey[i + 32];
+        }
+        BigInteger Vy = new BigInteger(VyBytes);
+        Edwards instance = new Edwards();
+        Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
+
+        Edwards.Point one = instance.gen().mul(z);
+        Edwards.Point two = V.mul(h);
+        Edwards.Point uPrime = one.add(two);
+
+        SHA3SHAKE sha256 = new SHA3SHAKE();
+        sha256.init(256);
+        sha256.absorb(uPrime.y.toByteArray());
+        sha256.absorb(message);
+
+        byte[] digest = sha256.digest();
+        BigInteger hPrime = new BigInteger(digest).mod(Edwards.getR());
+
+        return h.equals(hPrime);
     }
 
     /*private static void signedEncrypt(String publicKeyFile, String message, String outputDir, String passphrase) {
