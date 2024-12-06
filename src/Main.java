@@ -26,10 +26,11 @@ public class Main {
     private static final String HELP_MESSAGE = """
             Commands:
             keygen <passphrase> <output file>
-            encrypt <public key file> <message> <output file>
+            encrypt [passphrase] <public key file> <message file> <output file>
             decrypt <passphrase> <input file> <output file>
-            generate <file path> <passphrase> <output file>
+            generate <passphrase> <message file> <output file> // Changed to passphrase first, then message file
             verify <message file> <signature file> <public key file>
+            --------Arguments in brackets [] are optional--------
             """;
 
     /**
@@ -145,9 +146,8 @@ public class Main {
     /**
      * Decrypt a message using a passphrase.
      *
+     * @param encrypted     the byte array of data to decrypt
      * @param passphrase    the passphrase to decrypt the message
-     * @param inputDir      the input directory for the encrypted message
-     * @param outputDir     the output directory for the decrypted message
      */
     private static byte[] decrypt(byte[] encrypted, String passphrase) {
         // recompute the private key s
@@ -274,14 +274,6 @@ public class Main {
         return h.equals(hPrime);
     }
 
-    private static void signedEncrypt(String publicKeyFile, String message, String outputDir, String passphrase) {
-        // TODO
-    }
-
-    private static void signedDecrypt() {
-        // TODO
-    }
-
     private static void test() {
 
         Edwards e = new Edwards();
@@ -397,7 +389,7 @@ public class Main {
      * Encrypt a message using a public key.
      *
      * @param publicKeyFile the public key file
-     * @param message       the message to encrypt
+     * @param messageFile       the message to encrypt
      * @param outputDir     the output directory for the encrypted message
      */
     private static void encryptService(String publicKeyFile, String messageFile, String outputDir) {
@@ -431,7 +423,7 @@ public class Main {
     /**
      * Generate a signature for a file using a passphrase.
      *
-     * @param filePath      the file path to generate the signature for
+     * @param messageFile      the file path to generate the signature for
      * @param passphrase    the passphrase to generate the signature from
      * @param outputDir     the output directory for the signature
      */
@@ -542,14 +534,14 @@ public class Main {
                 if (args.length == 4) {
                     // 0 = "encrypt"
                     // 1 = public key file
-                    // 2 = message
+                    // 2 = message file
                     // 3 = output file
                     encryptService(args[1], args[2], args[3]);
                 } else if (args.length == 5) {
     //private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
                     // 0 = "encrypt"
                     // 1 = public key file
-                    // 2 = message
+                    // 2 = message file
                     // 3 = output file
                     // 4 = password
                     signedEncryptService(args[2], args[4], args[1], args[3]);
@@ -578,11 +570,11 @@ public class Main {
                 break;
             case "generate":
                 if (args.length == 4) {
-                    // 0 = "generate"
-                    // 1 = file path
-                    // 2 = passphrase
+                    // 0 = "generate" THIS CODE WAS ALTERED. PASSPHRASE AND MESSAGE FILE SWITCHEd
+                    // 1 = passphrase
+                    // 2 = message file
                     // 3 = output file
-                    signService(args[1], args[2], args[3]);
+                    signService(args[2], args[1], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
