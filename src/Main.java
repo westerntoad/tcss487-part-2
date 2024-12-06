@@ -64,12 +64,12 @@ public class Main {
 
         byte[] xBytes = V.x.toByteArray();
         byte[] yBytes = V.y.toByteArray();
-        byte[] out = new byte[R_BYTES << 2];
-        for (int i = 0; i < R_BYTES << 2; i++) {
-            out[i] = xBytes[i];
+        byte[] out = new byte[(R_BYTES << 1) * 2];
+        for (int i = 0; i < xBytes.length; i++) {
+            out[i + ((R_BYTES << 1) - xBytes.length)] = xBytes[i];
         }
-        for (int i = 0; i < R_BYTES; i++) {
-            out[i + 32] = yBytes[i];
+        for (int i = 0; i < yBytes.length; i++) {
+            out[i + 2 * (R_BYTES << 1) - yBytes.length] = yBytes[i];
         }
 
         return out;
