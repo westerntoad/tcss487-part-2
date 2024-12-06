@@ -76,9 +76,9 @@ public class Main {
     }
 
     private static byte[] encrypt(byte[] message, byte[] publicKey) {
-        byte[] VyBytes = new byte[32];
+        byte[] VyBytes = new byte[33];
         for (int i = 0; i < 32; i++) {
-            VyBytes[i] = publicKey[i + 32];
+            VyBytes[i + 1] = publicKey[i + 32];
         }
         BigInteger Vy = new BigInteger(VyBytes);
 
@@ -124,19 +124,22 @@ public class Main {
         // Z.x, Z.y, c, t
         byte[] ZxBytes = Z.x.toByteArray();
         byte[] ZyBytes = Z.y.toByteArray();
+        /* debug */ System.out.println(HEXF.formatHex(ZyBytes));
+        // /* debug */ System.out.println(Z.y);
+        // /* debug */ System.out.println(Z);
         byte[] out = new byte[ZxBytes.length + ZyBytes.length + c.length + t.length];
 
-        for (int i = 0; i < ZxBytes.length; i++) {
+        for (int i = 0; i < 32; i++) {
             out[i] = ZxBytes[i];
         }
-        for (int i = 0; i < ZyBytes.length; i++) {
-            out[i + ZxBytes.length] = ZyBytes[i];
+        for (int i = 0; i < 32; i++) {
+            out[i + 32] = ZyBytes[i];
         }
         for (int i = 0; i < c.length; i++) {
-            out[i + ZxBytes.length + ZyBytes.length] = c[i];
+            out[i + 64] = c[i];
         }
-        for (int i = 0; i < t.length; i++) {
-            out[i + ZxBytes.length + ZyBytes.length + c.length] = t[i];
+        for (int i = 0; i < 32; i++) {
+            out[i + 64 + c.length] = t[i];
         }
 
         return out;
@@ -153,23 +156,26 @@ public class Main {
         // recompute the private key s
         BigInteger s = generatePrivateKey(passphrase.getBytes());
 
-        byte[] ZyBytes = new byte[32];
+        byte[] ZyBytes = new byte[33];
         byte[] t = new byte[32];
         byte[] c = new byte[encrypted.length - 96];
-        for (int i = 0; i < ZyBytes.length; i++) {
-            ZyBytes[i] = encrypted[i + 32];
+        for (int i = 0; i < 32; i++) {
+            ZyBytes[i + 1] = encrypted[i + 32];
         }
         for (int i = 0; i < c.length; i++) {
-            c[i] = encrypted[i + 32 + ZyBytes.length];
+            c[i] = encrypted[i + 64];
         }
         for (int i = 0; i < t.length; i++) {
-            t[i] = encrypted[i + 32 + ZyBytes.length + c.length];
+            t[i] = encrypted[i + 64 + c.length];
         }
 
         // create point Z from input
         BigInteger Zy = new BigInteger(ZyBytes);
         Edwards instance = new Edwards();
         Edwards.Point Z = instance.getPoint(Zy, Zy.testBit(0));
+        /* debug */ System.out.println(HEXF.formatHex(ZyBytes));
+        // /* debug */ System.out.println(Z.y);
+        // /* debug */ System.out.println(Z);
 
         // compute W = sZ
         Edwards.Point W = Z.mul(s);
@@ -251,9 +257,9 @@ public class Main {
         BigInteger h = new BigInteger(hBytes);
         BigInteger z = new BigInteger(zBytes);
 
-        byte[] VyBytes = new byte[32];
+        byte[] VyBytes = new byte[33];
         for (int i = 0; i < 32; i++) {
-            VyBytes[i] = publicKey[i + 32];
+            VyBytes[i + 1] = publicKey[i + 32];
         }
         BigInteger Vy = new BigInteger(VyBytes);
         Edwards instance = new Edwards();
@@ -272,14 +278,6 @@ public class Main {
         BigInteger hPrime = new BigInteger(digest).mod(Edwards.getR());
 
         return h.equals(hPrime);
-    }
-
-    private static void signedEncrypt(String publicKeyFile, String message, String outputDir, String passphrase) {
-        // TODO
-    }
-
-    private static void signedDecrypt() {
-        // TODO
     }
 
     private static void test() {
