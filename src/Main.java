@@ -28,7 +28,7 @@ public class Main {
             keygen <passphrase> <output file>
             encrypt <public key file> <message file> <output file>
             decrypt <passphrase> <input file> <output file>
-            sign <passphrase> <message file> <output file> // Changed to passphrase first, then message file
+            sign <passphrase> <message file> <output file>
             verify <message file> <signature file> <public key file>
 
             ~ EXTRA CREDIT ~
@@ -70,11 +70,11 @@ public class Main {
         byte[] yBytes = V.y.toByteArray();
         /* debug */ System.out.println(HEXF.formatHex(yBytes));
         byte[] out = new byte[64];
-        for (int i = 0; i < 32; i++) {
-            out[i] = xBytes[i];
+        for (int i = xBytes.length - 32; i < xBytes.length; i++) {
+            out[i - (xBytes.length - 32)] = xBytes[i];
         }
-        for (int i = 0; i < 32; i++) {
-            out[i + 32] = yBytes[i];
+        for (int i = yBytes.length - 32; i < yBytes.length; i++) {
+            out[i - (yBytes.length - 32) + 32] = yBytes[i];
         }
 
         return out;
@@ -134,13 +134,13 @@ public class Main {
         /* debug */ System.out.println(HEXF.formatHex(ZyBytes));
         // /* debug */ System.out.println(Z.y);
         // /* debug */ System.out.println(Z);
-        byte[] out = new byte[ZxBytes.length + ZyBytes.length + c.length + t.length];
+        byte[] out = new byte[c.length + 96];
 
-        for (int i = 0; i < 32; i++) {
-            out[i] = ZxBytes[i];
+        for (int i = ZxBytes.length - 32; i < ZxBytes.length; i++) {
+            out[i - (ZxBytes.length - 32)] = ZxBytes[i];
         }
-        for (int i = 0; i < 32; i++) {
-            out[i + 32] = ZyBytes[i];
+        for (int i = ZyBytes.length - 32; i < ZyBytes.length; i++) {
+            out[i - (ZyBytes.length - 32) + 32] = ZyBytes[i];
         }
         for (int i = 0; i < c.length; i++) {
             out[i + 64] = c[i];
