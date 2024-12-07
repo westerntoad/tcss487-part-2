@@ -570,7 +570,7 @@ public class Main {
                 break;
             case "generate":
                 if (args.length == 4) {
-                    // 0 = "generate" THIS CODE WAS ALTERED. PASSPHRASE AND MESSAGE FILE SWITCHEd
+                    // 0 = "generate" THIS CODE WAS ALTERED. PASSPHRASE AND MESSAGE FILE SWITCHED
                     // 1 = passphrase
                     // 2 = message file
                     // 3 = output file
@@ -591,8 +591,7 @@ public class Main {
                 }
                 break;
             case "test":
-                //test();
-                sign("password", new byte[16]);
+                test();
                 break;
             case "help":
                 System.out.println(HELP_MESSAGE);
