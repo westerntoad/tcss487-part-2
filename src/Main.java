@@ -567,11 +567,12 @@ public class Main {
                 break;
             case "sign":
                 if (args.length == 4) {
+    //private static void signService(String messageFile, String passphrase, String outputDir) {
                     // 0 = "generate"
-                    // 1 = file path
-                    // 2 = passphrase
+                    // 1 = passphrase
+                    // 2 = file path
                     // 3 = output file
-                    signService(args[1], args[2], args[3]);
+                    signService(args[2], args[1], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
