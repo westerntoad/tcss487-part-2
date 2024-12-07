@@ -26,10 +26,14 @@ public class Main {
     private static final String HELP_MESSAGE = """
             Commands:
             keygen <passphrase> <output file>
-            encrypt <public key file> <message> <output file>
+            encrypt <public key file> <message file> <output file>
             decrypt <passphrase> <input file> <output file>
-            generate <file path> <passphrase> <output file>
+            sign <passphrase> <message file> <output file> // Changed to passphrase first, then message file
             verify <message file> <signature file> <public key file>
+
+            ~ EXTRA CREDIT ~
+            encrypt-sign <passphrase> <public key file> <message file> <output file>
+            decrypt-verify <passphrase> <public key file> <input file> <output file>
             """;
 
     /**
@@ -64,6 +68,7 @@ public class Main {
 
         byte[] xBytes = V.x.toByteArray();
         byte[] yBytes = V.y.toByteArray();
+        /* debug */ System.out.println(HEXF.formatHex(yBytes));
         byte[] out = new byte[64];
         for (int i = 0; i < 32; i++) {
             out[i] = xBytes[i];
@@ -76,10 +81,12 @@ public class Main {
     }
 
     private static byte[] encrypt(byte[] message, byte[] publicKey) {
+        /* debug */ System.out.println(HEXF.formatHex(publicKey));
         byte[] VyBytes = new byte[33];
         for (int i = 0; i < 32; i++) {
             VyBytes[i + 1] = publicKey[i + 32];
         }
+        /* debug */ System.out.println(HEXF.formatHex(VyBytes));
         BigInteger Vy = new BigInteger(VyBytes);
 
         // create point V from public key
@@ -540,17 +547,9 @@ public class Main {
                 if (args.length == 4) {
                     // 0 = "encrypt"
                     // 1 = public key file
-                    // 2 = message
+                    // 2 = message file
                     // 3 = output file
                     encryptService(args[1], args[2], args[3]);
-                } else if (args.length == 5) {
-    //private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
-                    // 0 = "encrypt"
-                    // 1 = public key file
-                    // 2 = message
-                    // 3 = output file
-                    // 4 = password
-                    signedEncryptService(args[2], args[4], args[1], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
@@ -562,19 +561,11 @@ public class Main {
                     // 2 = input file
                     // 3 = output file
                     decryptService(args[1], args[2], args[3]);
-                } else if (args.length == 5) {
-    //private static void signedDecryptionService(String inputDir, String publicKeyFile, String passphrase, String outputDir) {
-                    // 0 = "decrypt"
-                    // 1 = passphrase
-                    // 2 = input file
-                    // 3 = output file
-                    // 4 = public key file
-                    signedDecryptService(args[2], args[4], args[1], args[3]);
                 } else {
                     System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
-            case "generate":
+            case "sign":
                 if (args.length == 4) {
                     // 0 = "generate"
                     // 1 = file path
@@ -596,9 +587,39 @@ public class Main {
                     System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
+                /*
+            Commands:
+            keygen <passphrase> <output file>
+            encrypt <public key file> <message file> <output file>
+            decrypt <passphrase> <input file> <output file>
+            sign <passphrase> <message file> <output file> // Changed to passphrase first, then message file
+            verify <message file> <signature file> <public key file>
+            test
+
+            ~ EXTRA CREDIT ~
+            encrypt-sign <passphrase> <public key file> <message file> <output file>
+            decrypt-verify <passphrase> <public key file> <input file> <output file>
+                 */
+            case "encrypt-sign":
+    //private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
+                // 0 = "encrypt-sign"
+                // 1 = passphrase
+                // 2 = public key file
+                // 3 = message file
+                // 4 = output file
+                signedEncryptService(args[3], args[1], args[2], args[4]);
+                break;
+            case "decrypt-verify":
+    //private static void signedDecryptionService(String inputDir, String publicKeyFile, String passphrase, String outputDir) {
+                // 0 = "decrypt-verify"
+                // 1 = passphrase
+                // 2 = public key file
+                // 3 = input file
+                // 4 = output file
+                signedDecryptService(args[3], args[2], args[1], args[4]);
+                break;
             case "test":
-                //test();
-                sign("password", new byte[16]);
+                test();
                 break;
             case "help":
                 System.out.println(HELP_MESSAGE);
