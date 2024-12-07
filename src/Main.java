@@ -68,7 +68,7 @@ public class Main {
 
         byte[] xBytes = V.x.toByteArray();
         byte[] yBytes = V.y.toByteArray();
-        /* debug */ System.out.println(HEXF.formatHex(yBytes));
+        /* debug */ System.out.println("Vy = " + HEXF.formatHex(yBytes));
         byte[] out = new byte[64];
         for (int i = xBytes.length - 32; i < xBytes.length; i++) {
             out[i - (xBytes.length - 32)] = xBytes[i];
@@ -242,6 +242,8 @@ public class Main {
         // the signature is the pair (h,z)
         byte[] hBytes = h.toByteArray(); // always 32 bytes
         byte[] zBytes = z.toByteArray(); // always 32 bytes
+        /* debug */ System.out.println("h = " + HEXF.formatHex(hBytes));
+        /* debug */ System.out.println("z = " + HEXF.formatHex(zBytes));
         byte[] signature = new byte[64];
         for (int i = 0; i < 32; i++) {
             signature[i] = hBytes[i];
@@ -261,6 +263,8 @@ public class Main {
         for (int i = 0; i < 32; i++) {
             zBytes[i] = signature[i + 32];
         }
+        /* debug */ System.out.println("h = " + HEXF.formatHex(hBytes));
+        /* debug */ System.out.println("z = " + HEXF.formatHex(zBytes));
         BigInteger h = new BigInteger(hBytes);
         BigInteger z = new BigInteger(zBytes);
 
@@ -268,6 +272,7 @@ public class Main {
         for (int i = 0; i < 32; i++) {
             VyBytes[i + 1] = publicKey[i + 32];
         }
+        /* debug */ System.out.println("Vy = " + HEXF.formatHex(VyBytes));
         BigInteger Vy = new BigInteger(VyBytes);
         Edwards instance = new Edwards();
         Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
@@ -284,6 +289,8 @@ public class Main {
         byte[] digest = sha256.digest();
         BigInteger hPrime = new BigInteger(digest).mod(Edwards.getR());
 
+        /* debug */ System.out.println("h      = " + HEXF.formatHex(h.toByteArray()));
+        /* debug */ System.out.println("hPrime = " + HEXF.formatHex(hPrime.toByteArray()));
         return h.equals(hPrime);
     }
 
@@ -567,7 +574,6 @@ public class Main {
                 break;
             case "sign":
                 if (args.length == 4) {
-    //private static void signService(String messageFile, String passphrase, String outputDir) {
                     // 0 = "generate"
                     // 1 = passphrase
                     // 2 = file path
@@ -588,21 +594,7 @@ public class Main {
                     System.out.println("Error: Invalid number of arguments.");
                 }
                 break;
-                /*
-            Commands:
-            keygen <passphrase> <output file>
-            encrypt <public key file> <message file> <output file>
-            decrypt <passphrase> <input file> <output file>
-            sign <passphrase> <message file> <output file> // Changed to passphrase first, then message file
-            verify <message file> <signature file> <public key file>
-            test
-
-            ~ EXTRA CREDIT ~
-            encrypt-sign <passphrase> <public key file> <message file> <output file>
-            decrypt-verify <passphrase> <public key file> <input file> <output file>
-                 */
             case "encrypt-sign":
-    //private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
                 // 0 = "encrypt-sign"
                 // 1 = passphrase
                 // 2 = public key file
@@ -611,7 +603,6 @@ public class Main {
                 signedEncryptService(args[3], args[1], args[2], args[4]);
                 break;
             case "decrypt-verify":
-    //private static void signedDecryptionService(String inputDir, String publicKeyFile, String passphrase, String outputDir) {
                 // 0 = "decrypt-verify"
                 // 1 = passphrase
                 // 2 = public key file
