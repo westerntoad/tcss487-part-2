@@ -16,11 +16,6 @@ import java.util.*;
  */
 public class Main {
 
-    /**
-     * HexFormat instance for formatting byte arrays to hex strings.
-     */
-    private static final HexFormat HEXF = HexFormat.of();
-
     private static final int R_BYTES = (Edwards.getR().bitLength() + 7) >> 3;
 
     private static final String HELP_MESSAGE = """
@@ -98,7 +93,7 @@ public class Main {
         Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
 
         // generate random k mod r
-        var k = new BigInteger(new SecureRandom().generateSeed(R_BYTES << 1)).mod(Edwards.getR());
+        BigInteger k = new BigInteger(new SecureRandom().generateSeed(R_BYTES << 1)).mod(Edwards.getR());
 
         // compute W = kV and Z = kG
         Edwards.Point W = V.mul(k);
@@ -209,11 +204,7 @@ public class Main {
             c[i] ^= stream[i];
         }
 
-        if (!Arrays.equals(t, tPrime)) {
-            System.out.println("Error: t != t'");
-            return null;
-        }
-        return c;
+        return Arrays.equals(t, tPrime) ? c : null;
     }
 
     /**
@@ -229,7 +220,7 @@ public class Main {
 
         // generate random k mod r
         int rBytes = (Edwards.getR().bitLength() + 7) >> 3;
-        var k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
+        BigInteger k = new BigInteger(new SecureRandom().generateSeed(rBytes << 1)).mod(Edwards.getR());
 
         // compute U = kG
         Edwards instance = new Edwards();
@@ -451,7 +442,12 @@ public class Main {
         try (FileOutputStream fos = new FileOutputStream(outputDir)) {
             // read input from file
             byte[] encrypted = Files.readAllBytes(Paths.get(inputDir));
-            fos.write(decrypt(encrypted, passphrase));
+            byte[] decrypted = decrypt(encrypted, passphrase);
+            if (decrypted == null) {
+                System.out.println("Error: t != t'");
+            } else {
+                fos.write(decrypted);
+            }
         } catch (IOException e) {
             System.out.println("Error: Invalid path to file. Please try again.");
         }
@@ -545,12 +541,16 @@ public class Main {
             for (int i = 0; i < signature.length; i++) {
                 signature[i] = raw[i + encrypted.length];
             }
-            System.out.println(HEXF.formatHex(raw));
             byte[] decrypted = decrypt(encrypted, passphrase);
 
             if (verify(decrypted, signature, publicKey)) {
                 System.out.println("Signature Verified!");
-                fos.write(decrypted);
+
+                if (decrypted == null) {
+                    System.out.println("Error: t != t'");
+                } else {
+                    fos.write(decrypted);
+                }
             } else {
                 System.out.println("Signature not verified.");
             }
