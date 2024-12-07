@@ -7,7 +7,7 @@ import java.security.SecureRandom;
 import java.util.*;
 
 /**
- * Main class for the Edwards elliptic curve.
+ * Main class for the Edwards ed-256-mers* elliptic curve.
  *
  * @author  Christian Bonnalie
  * @author  Abraham Engebretson
@@ -64,13 +64,10 @@ public class Main {
             s = Edwards.getR().subtract(s).mod(Edwards.getR());
             // replace V by -V
             V = V.negate();
-            System.out.println("V negated");
         }
 
         byte[] xBytes = V.x.toByteArray();
         byte[] yBytes = V.y.toByteArray();
-        System.out.println("Vx = " + V.x);
-        System.out.println("Vy = " + V.y);
         byte[] out = new byte[64];
         for (int i = xBytes.length - 32; i < xBytes.length; i++) {
             out[i - (xBytes.length - 32)] = xBytes[i];
@@ -82,13 +79,18 @@ public class Main {
         return out;
     }
 
+    /**
+     * Encrypt a message using a public key.
+     *
+     * @param message   the message to encrypt
+     * @param publicKey the public key to encrypt the message with
+     * @return          the encrypted message
+     */
     private static byte[] encrypt(byte[] message, byte[] publicKey) {
-        /* debug */ System.out.println(HEXF.formatHex(publicKey));
         byte[] VyBytes = new byte[33];
         for (int i = 0; i < 32; i++) {
             VyBytes[i + 1] = publicKey[i + 32];
         }
-        /* debug */ System.out.println(HEXF.formatHex(VyBytes));
         BigInteger Vy = new BigInteger(VyBytes);
 
         // create point V from public key
@@ -133,9 +135,6 @@ public class Main {
         // Z.x, Z.y, c, t
         byte[] ZxBytes = Z.x.toByteArray();
         byte[] ZyBytes = Z.y.toByteArray();
-        /* debug */ System.out.println(HEXF.formatHex(ZyBytes));
-        // /* debug */ System.out.println(Z.y);
-        // /* debug */ System.out.println(Z);
         byte[] out = new byte[c.length + 96];
 
         for (int i = ZxBytes.length - 32; i < ZxBytes.length; i++) {
@@ -157,9 +156,8 @@ public class Main {
     /**
      * Decrypt a message using a passphrase.
      *
+     * @param encrypted     the encrypted message
      * @param passphrase    the passphrase to decrypt the message
-     * @param inputDir      the input directory for the encrypted message
-     * @param outputDir     the output directory for the decrypted message
      */
     private static byte[] decrypt(byte[] encrypted, String passphrase) {
         // recompute the private key s
@@ -182,9 +180,6 @@ public class Main {
         BigInteger Zy = new BigInteger(ZyBytes);
         Edwards instance = new Edwards();
         Edwards.Point Z = instance.getPoint(Zy, Zy.testBit(0));
-        /* debug */ System.out.println(HEXF.formatHex(ZyBytes));
-        // /* debug */ System.out.println(Z.y);
-        // /* debug */ System.out.println(Z);
 
         // compute W = sZ
         Edwards.Point W = Z.mul(s);
@@ -214,9 +209,20 @@ public class Main {
             c[i] ^= stream[i];
         }
 
+        if (!Arrays.equals(t, tPrime)) {
+            System.out.println("Error: t != t'");
+            return null;
+        }
         return c;
     }
-    
+
+    /**
+     * Sign a message using a passphrase.
+     *
+     * @param passphrase    the passphrase to sign the message
+     * @param message       the message to sign
+     * @return              the signature
+     */
     private static byte[] sign(String passphrase, byte[] message) {
         // recompute s from the passphrase
         BigInteger s = generatePrivateKey(passphrase.getBytes());
@@ -244,8 +250,6 @@ public class Main {
         // the signature is the pair (h,z)
         byte[] hBytes = h.toByteArray(); // always 32 bytes
         byte[] zBytes = z.toByteArray(); // always 32 bytes
-        /* debug */ System.out.println("h = " + HEXF.formatHex(hBytes));
-        /* debug */ System.out.println("z = " + HEXF.formatHex(zBytes));
         byte[] signature = new byte[64];
         for (int i = 0; i < 32; i++) {
             signature[i] = hBytes[i];
@@ -256,6 +260,14 @@ public class Main {
         return signature;
     }
 
+    /**
+     * Verify a signature for a message using a public key.
+     *
+     * @param message   the message to verify the signature for
+     * @param signature the signature to verify
+     * @param publicKey the public key to verify the signature with
+     * @return          whether the signature is valid
+     */
     private static boolean verify(byte[] message, byte[] signature, byte[] publicKey) {
         byte[] hBytes = new byte[32];
         for (int i = 0; i < 32; i++) {
@@ -265,8 +277,6 @@ public class Main {
         for (int i = 0; i < 32; i++) {
             zBytes[i] = signature[i + 32];
         }
-        /* debug */ System.out.println("h = " + HEXF.formatHex(hBytes));
-        /* debug */ System.out.println("z = " + HEXF.formatHex(zBytes));
         BigInteger h = new BigInteger(hBytes);
         BigInteger z = new BigInteger(zBytes);
 
@@ -283,9 +293,6 @@ public class Main {
         Edwards instance = new Edwards();
         Edwards.Point V = instance.getPoint(Vy, Vx.testBit(0));
 
-        System.out.println("Vx = " + V.x);
-        System.out.println("Vy = " + V.y);
-
         Edwards.Point one = instance.gen().mul(z);
         Edwards.Point two = V.mul(h);
         Edwards.Point uPrime = one.add(two);
@@ -298,11 +305,12 @@ public class Main {
         byte[] digest = sha256.digest();
         BigInteger hPrime = new BigInteger(digest).mod(Edwards.getR());
 
-        /* debug */ System.out.println("h      = " + HEXF.formatHex(h.toByteArray()));
-        /* debug */ System.out.println("hPrime = " + HEXF.formatHex(hPrime.toByteArray()));
         return h.equals(hPrime);
     }
 
+    /**
+     * Test the arithmetic properties of the Edwards elliptic curve.
+     */
     private static void test() {
 
         Edwards e = new Edwards();
@@ -402,6 +410,7 @@ public class Main {
     
     /**
      * Generate a key pair from a passphrase.
+     *
      * @param passphrase    the passphrase to generate the key pair from
      * @param outputDir     the output directory for the public key
      */
@@ -418,7 +427,7 @@ public class Main {
      * Encrypt a message using a public key.
      *
      * @param publicKeyFile the public key file
-     * @param message       the message to encrypt
+     * @param messageFile   the message file to encrypt
      * @param outputDir     the output directory for the encrypted message
      */
     private static void encryptService(String publicKeyFile, String messageFile, String outputDir) {
@@ -452,7 +461,7 @@ public class Main {
     /**
      * Generate a signature for a file using a passphrase.
      *
-     * @param filePath      the file path to generate the signature for
+     * @param messageFile   the message file to generate the signature for
      * @param passphrase    the passphrase to generate the signature from
      * @param outputDir     the output directory for the signature
      */
@@ -488,6 +497,14 @@ public class Main {
         }
     }
 
+    /**
+     * Encrypt a message using a public key and sign it using a passphrase.
+     *
+     * @param messageFile       the message file to encrypt
+     * @param passphrase        the passphrase to sign the message
+     * @param publicKeyFile     the public key file to encrypt the message
+     * @param outputDir         the output directory for the encrypted message
+     */
     private static void signedEncryptService(String messageFile, String passphrase, String publicKeyFile, String outputDir) {
         try (FileOutputStream fos = new FileOutputStream(outputDir)) {
             byte[] message = Files.readAllBytes(Paths.get(messageFile));
@@ -507,7 +524,15 @@ public class Main {
             System.out.println("Error: Invalid path to file. Please try again.");
         }
     }
-    
+
+    /**
+     * Decrypt a message using a passphrase and verify the signature.
+     *
+     * @param inputDir      the input directory for the encrypted message
+     * @param publicKeyFile the public key file to verify the signature
+     * @param passphrase    the passphrase to decrypt the message
+     * @param outputDir     the output directory for the decrypted message
+     */
     private static void signedDecryptService(String inputDir, String publicKeyFile, String passphrase, String outputDir) {
         try (FileOutputStream fos = new FileOutputStream(outputDir)) {
             byte[] publicKey = Files.readAllBytes(Paths.get(publicKeyFile));
@@ -535,8 +560,6 @@ public class Main {
 
     }
 
-
-    
     /**
      * Main method for the Edwards elliptic curve.
      *

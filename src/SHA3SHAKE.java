@@ -324,6 +324,13 @@ public class SHA3SHAKE {
         }
     }
 
+    /**
+     * Check if the arguments are valid for the SHA-3/SHAKE functions.
+     *
+     * @param SHA3      true if SHA-3, false if SHAKE
+     * @param suffix    the suffix value
+     * @param outLength the length of the output buffer
+     */
     private static void checkValidArgs(boolean SHA3, int suffix, int outLength) {
 
         if (SHA3) {
@@ -368,6 +375,10 @@ public class SHA3SHAKE {
         return result;
     }
 
+    /**
+     * Pad the sponge with the appropriate padding for SHA-3 or SHAKE.
+     * @param isSHA true if padding for SHA-3, false if padding for SHAKE
+     */
     private void pad(boolean isSHA) {
 
         long padStart = (isSHA) ? 0x06L : 0x1FL;
