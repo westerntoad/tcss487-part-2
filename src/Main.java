@@ -64,11 +64,13 @@ public class Main {
             s = Edwards.getR().subtract(s).mod(Edwards.getR());
             // replace V by -V
             V = V.negate();
+            System.out.println("V negated");
         }
 
         byte[] xBytes = V.x.toByteArray();
         byte[] yBytes = V.y.toByteArray();
-        /* debug */ System.out.println("Vy = " + HEXF.formatHex(yBytes));
+        System.out.println("Vx = " + V.x);
+        System.out.println("Vy = " + V.y);
         byte[] out = new byte[64];
         for (int i = xBytes.length - 32; i < xBytes.length; i++) {
             out[i - (xBytes.length - 32)] = xBytes[i];
@@ -268,14 +270,21 @@ public class Main {
         BigInteger h = new BigInteger(hBytes);
         BigInteger z = new BigInteger(zBytes);
 
+        byte[] VxBytes = new byte[33];
+        for (int i = 0; i < 32; i++) {
+            VxBytes[i + 1] = publicKey[i];
+        }
         byte[] VyBytes = new byte[33];
         for (int i = 0; i < 32; i++) {
             VyBytes[i + 1] = publicKey[i + 32];
         }
-        /* debug */ System.out.println("Vy = " + HEXF.formatHex(VyBytes));
+        BigInteger Vx = new BigInteger(VxBytes);
         BigInteger Vy = new BigInteger(VyBytes);
         Edwards instance = new Edwards();
-        Edwards.Point V = instance.getPoint(Vy, Vy.testBit(0));
+        Edwards.Point V = instance.getPoint(Vy, Vx.testBit(0));
+
+        System.out.println("Vx = " + V.x);
+        System.out.println("Vy = " + V.y);
 
         Edwards.Point one = instance.gen().mul(z);
         Edwards.Point two = V.mul(h);

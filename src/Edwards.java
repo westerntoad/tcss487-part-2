@@ -41,6 +41,10 @@ public class Edwards {
         return CONSTANT_R;
     }
 
+    public static BigInteger getP() {
+        return CONSTANT_P;
+    }
+
     /**
      * Determine if a given affine coordinate pair P = (x, y)
      * defines a point on the curve.
@@ -79,8 +83,8 @@ public class Edwards {
      */
     public Point getPoint(BigInteger y, boolean x_lsb) {
         // x = +/- sqrt((1 - y^2) / (1 - d*y^2)) mod p
-        BigInteger num = BigInteger.ONE.subtract(y.multiply(y));
-        BigInteger den = BigInteger.ONE.subtract(CONSTANT_D.multiply(y.multiply(y)));
+        BigInteger num = BigInteger.ONE.subtract(y.multiply(y)).mod(CONSTANT_P);
+        BigInteger den = BigInteger.ONE.subtract(CONSTANT_D.multiply(y.multiply(y))).mod(CONSTANT_P);
         BigInteger denInv = den.modInverse(CONSTANT_P);
         BigInteger xSquared = num.multiply(denInv).mod(CONSTANT_P);
         BigInteger x = sqrt(xSquared, CONSTANT_P, x_lsb);
